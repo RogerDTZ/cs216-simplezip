@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.10)
 project(SimpleZip)
 set(CMAKE_CXX_STANDARD 17)
 
+# third party build
+add_subdirectory(third_party/googletest)
+
 # simplezip options
 option(SZ_ENABLE_FREAD off)
 
@@ -15,6 +18,7 @@ target_sources(sz
 	"${CMAKE_SOURCE_DIR}/crc/crc32.hpp"
 	"${CMAKE_SOURCE_DIR}/crc/crc32.cpp"
 	"${CMAKE_SOURCE_DIR}/util/bit_util.hpp"
+	"${CMAKE_SOURCE_DIR}/util/bit_util.cpp"
 	"${CMAKE_SOURCE_DIR}/util/byte_util.hpp"
 	"${CMAKE_SOURCE_DIR}/wrapper/constants.hpp"
 	"${CMAKE_SOURCE_DIR}/wrapper/file_entry.cpp"
@@ -48,4 +52,21 @@ target_link_libraries(
 	app
 	sz
 )
+
+# tests
+enable_testing()
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+add_executable(sz_tests "")
+target_sources(sz_tests
+	PRIVATE
+	"tests/test_entry.cpp"
+	"tests/bitflow_test.cpp"
+)
+target_link_libraries(sz_tests sz gtest gtest_main)
+target_include_directories(sz_tests 
+	PUBLIC 
+	"${PROJECT_SOURCE_DIR}"
+	"${PROJECT_SOURCE_DIR}/include"
+)
+add_test(NAME "sz_tests" COMMAND "sz_tests")
 
