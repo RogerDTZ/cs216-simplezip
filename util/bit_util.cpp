@@ -5,7 +5,7 @@ namespace sz {
 constexpr uint32 BYTE_MASK = (1u << 8) - 1;
 constexpr int BitReverseTable[1 << BIT_REVERSE_TABLE_LEN] = {0};
 constexpr uint32 GetLowBits(const uint32 x, const int n) {
-  return x & (1 << n);
+  return x & ((1 << n) - 1);
 }
 
 uint32 reverse_bits(uint32 payload, const int n) {
@@ -38,11 +38,13 @@ void BitFlowBuilder::write_bits(uint32 payload, int n, const bool little_end) {
     return;
   }
   *m_cur_byte |= GetLowBits(payload, 8 - m_cur_bit) << m_cur_bit;
+  payload >>= 8 - m_cur_bit;
   n -= 8 - m_cur_bit;
   next_byte();
   while (n >= 8) {
     *m_cur_byte = payload & BYTE_MASK;
     next_byte();
+    payload >>= 8;
     n -= 8;
   }
   if (n) {
@@ -76,10 +78,11 @@ void BitFlowBuilder::next_byte() {
 }
 
 void BitFlowBuilder::expand() {
+  size_t size = m_cur_byte - &m_bytes[0];
   m_cap <<= 1;
   m_bytes.resize(m_cap);
-  m_cur_byte = &m_bytes[0];
-  m_buffer_end = m_cur_byte + m_cap;
+  m_cur_byte = &m_bytes[0] + size;
+  m_buffer_end = &m_bytes[0] + m_cap;
 }
 
 }  // namespace sz
