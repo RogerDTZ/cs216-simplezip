@@ -1,12 +1,14 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
-#include <queue>
 
 #include "util/bit_util.hpp"
 
 #include "gtest/gtest.h"
 #include "sz/sz.hpp"
+
+constexpr int BitFlowLen = 1 << 26;
+constexpr int SingleDataMaxLen = 18;
 
 TEST(util, BitFlowBuilder_size) {
   auto bb = std::make_shared<sz::BitFlowBuilder>();
@@ -32,14 +34,14 @@ TEST(util, BitFlowBuilder_size) {
 }
 
 TEST(util, BitFlow_content) {
-  auto bb = std::make_shared<sz::BitFlowBuilder>(0);
-  constexpr int BIT_LEN = 32877;
-  auto arr = new int[BIT_LEN];
-  for (int i = 0; i < BIT_LEN; ++i) {
+  auto bb = std::make_shared<sz::BitFlowBuilder>(BitFlowLen >>
+                                                 6);  // also test expanding
+  int* arr = new int[BitFlowLen];
+  for (int i = 0; i < BitFlowLen; ++i) {
     arr[i] = rand() % 2;
   }
-  for (int i = 0, j; i < BIT_LEN; i = j + 1) {
-    j = i + rand() % std::min(BIT_LEN - i, 18);
+  for (int i = 0, j; i < BitFlowLen; i = j + 1) {
+    j = i + rand() % std::min(BitFlowLen - i, SingleDataMaxLen);
     sz::uint32 val = 0;
     for (int k = i; k <= j; ++k) {
       val |= arr[k] << (k - i);
@@ -47,12 +49,41 @@ TEST(util, BitFlow_content) {
     bb->write_bits(val, j - i + 1);
   }
 
-  EXPECT_EQ(bb->get_bits_size(), BIT_LEN);
-  EXPECT_EQ(bb->get_bytes_size(), (BIT_LEN + 7) >> 3);
+  EXPECT_EQ(bb->get_bits_size(), BitFlowLen);
+  EXPECT_EQ(bb->get_bytes_size(), (BitFlowLen + 7) >> 3);
 
-  auto res = new sz::Byte[bb->get_bytes_size()];
+  const auto res = new sz::Byte[bb->get_bytes_size()];
   bb->export_bitflow(res);
-  for (int i = 0; i < BIT_LEN; ++i) {
+  for (int i = 0; i < BitFlowLen; ++i) {
+    EXPECT_EQ((res[i >> 3] >> (i & 7)) & 1, arr[i]);
+  }
+
+  delete[] res;
+  delete[] arr;
+}
+
+TEST(util, BitFlow_contentrev) {
+  auto bb = std::make_shared<sz::BitFlowBuilder>(BitFlowLen >>
+                                                 8);  // also test expanding
+  int* arr = new int[BitFlowLen];
+  for (int i = 0; i < BitFlowLen; ++i) {
+    arr[i] = rand() % 2;
+  }
+  for (int i = 0, j; i < BitFlowLen; i = j + 1) {
+    j = i + rand() % std::min(BitFlowLen - i, SingleDataMaxLen);
+    sz::uint32 val = 0;
+    for (int k = i; k <= j; ++k) {
+      val |= arr[k] << (j - k);
+    }
+    bb->write_bits(val, j - i + 1, false);
+  }
+
+  EXPECT_EQ(bb->get_bits_size(), BitFlowLen);
+  EXPECT_EQ(bb->get_bytes_size(), (BitFlowLen + 7) >> 3);
+
+  const auto res = new sz::Byte[bb->get_bytes_size()];
+  bb->export_bitflow(res);
+  for (int i = 0; i < BitFlowLen; ++i) {
     EXPECT_EQ((res[i >> 3] >> (i & 7)) & 1, arr[i]);
   }
 

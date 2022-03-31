@@ -18,7 +18,7 @@ namespace io {
 inline std::vector<Byte> read_bytes(const char* filename) {
   std::ifstream ifs;
   ifs.open(filename, std::ios::binary);
-  if (ifs.fail()) {
+  if (!ifs.is_open() || ifs.fail()) {
     log::panic("cannot open file '", filename, "'");
   }
 
@@ -26,7 +26,7 @@ inline std::vector<Byte> read_bytes(const char* filename) {
   const auto size = ifs.tellg();
   ifs.seekg(0, std::ifstream::beg);
 
-#ifdef READ_USE_FREAD
+#ifdef SZ_IO_USE_FREAD_FWRITE
   ifs.close();
   FILE* file = nullptr;
   fopen_s(&file, filename, "rb");

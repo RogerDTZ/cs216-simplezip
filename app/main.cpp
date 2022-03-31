@@ -30,7 +30,7 @@ int main(int argc, char **args) {
 
   sz::Zipper zipper;
   std::cerr << "creating file entry ... ";
-  sz::FileEntry file(src_filename, sz::CompressionMethod::none);
+  sz::FileEntry file(src_filename, sz::CompressionMethod::deflate);
   std::cerr << "done" << std::endl;
   zipper.add_entry(file);
 

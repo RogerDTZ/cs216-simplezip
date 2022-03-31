@@ -6,9 +6,14 @@
 
 namespace sz {
 
-constexpr int BIT_REVERSE_TABLE_LEN = 10;
+#ifdef SZ_USE_REVERSEBIT_TABLE
+constexpr int BIT_REVERSE_TABLE_LEN = 15;
+#endif
 
 extern uint32 reverse_bits(uint32 payload, int n);
+#ifdef BUILD_TEST
+extern uint32 reverse_bits_no_table(uint32 payload, int n);
+#endif
 
 class BitFlowBuilder {
  public:
@@ -30,6 +35,10 @@ class BitFlowBuilder {
   // Append the low n bits of payload to the bit flow.
   // Little end is used by default.
   void write_bits(uint32 payload, int n, bool little_end = true);
+#ifdef BUILD_TEST
+  // Comparison of not using reverse bit table.
+  void write_bits_no_rev_table(uint32 payload, int n, bool little_end = true);
+#endif
 
   // Get the number of bits.
   [[nodiscard]] size_t get_bits_size() const;

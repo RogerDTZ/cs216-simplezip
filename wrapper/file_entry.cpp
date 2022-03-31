@@ -2,11 +2,13 @@
 
 #include <cassert>
 
+#include "util/byte_util.hpp"
+
+#include "compress/algo_deflate.hpp"
 #include "compress/algo_store.hpp"
 #include "crc/crc32.hpp"
 #include "sz/fs.hpp"
 #include "sz/log.hpp"
-#include "util/byte_util.hpp"
 #include "wrapper/constants.hpp"
 #include "wrapper/version.hpp"
 
@@ -33,8 +35,8 @@ FileEntry::FileEntry(const char* filename, CompressionMethod method)
       m_compressor = std::make_shared<StoreCompressor>();
       break;
     case CompressionMethod::deflate:
-      log::log("deflate not implemented yet, use store instead");
-      m_compressor = std::make_shared<StoreCompressor>();
+      m_compressor =
+          std::make_shared<DeflateCompressor>(DeflateCodingType::static_coding);
       break;
   }
   m_compressor->feed(&m_raw[0], m_raw.size());
@@ -54,12 +56,12 @@ void FileEntry::write_local_file_header(std::vector<Byte>& buffer) const {
   marshal_16(p, m_last_modify_time.time);
   marshal_16(p, m_last_modify_time.date);
   marshal_32(p, m_crc32);
-  marshal_32(p, get_uncompressed_size());
   marshal_32(p, get_compressed_size());
+  marshal_32(p, get_uncompressed_size());
   marshal_16(p, get_name_length());
   marshal_16(p, m_length_extra);
   marshal_string(p, m_filename);
-  assert(m_length_extra == 0, "No extra field in current implementation");
+  assert(m_length_extra == 0);  // No extra field in current implementation
 
   buffer.insert(buffer.end(), content, content + header_length);
   delete[] content;
@@ -86,8 +88,8 @@ void FileEntry::write_central_directory_file_header(
   marshal_16(p, m_last_modify_time.time);
   marshal_16(p, m_last_modify_time.date);
   marshal_32(p, m_crc32);
-  marshal_32(p, get_uncompressed_size());
   marshal_32(p, get_compressed_size());
+  marshal_32(p, get_uncompressed_size());
   marshal_16(p, get_name_length());
   marshal_16(p, m_length_extra);
   marshal_16(p, get_comment_length());
@@ -96,7 +98,7 @@ void FileEntry::write_central_directory_file_header(
   marshal_32(p, m_external_attr);
   marshal_32(p, off_local_file_header);
   marshal_string(p, m_filename);
-  assert(m_length_extra == 0, "No extra field in current implementation");
+  assert(m_length_extra == 0);  // No extra field in current implementation
   marshal_string(p, m_comment);
 
   buffer.insert(buffer.end(), content, content + header_length);
