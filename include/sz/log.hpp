@@ -6,6 +6,8 @@ namespace sz {
 
 namespace log {
 
+inline bool log_info_switch = false;
+
 template <typename... Ts>
 void panic(Ts... args) {
   std::cerr << "[ERROR] ";
@@ -16,9 +18,11 @@ void panic(Ts... args) {
 
 template <typename... Ts>
 void log(Ts... args) {
-  std::cerr << "[INFO]  ";
-  (std::cerr << ... << args);
-  std::cerr << std::endl;
+  if (log_info_switch) {
+    std::cerr << "[INFO]  ";
+    (std::cerr << ... << args);
+    std::cerr << std::endl;
+  }
 }
 
 }  // namespace log

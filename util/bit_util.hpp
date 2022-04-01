@@ -35,10 +35,13 @@ class BitFlowBuilder {
   // Append the low n bits of payload to the bit flow.
   // Little end is used by default.
   void write_bits(uint32 payload, int n, bool little_end = true);
-#ifdef BUILD_TEST
+#if defined(BUILD_TEST) && defined(SZ_USE_REVERSEBIT_TABLE)
   // Comparison of not using reverse bit table.
   void write_bits_no_rev_table(uint32 payload, int n, bool little_end = true);
 #endif
+
+  // Align to byte using the bit.
+  void align_to_byte(int bit);
 
   // Get the number of bits.
   [[nodiscard]] size_t get_bits_size() const;

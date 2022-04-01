@@ -13,7 +13,8 @@ class FileEntry {
  public:
   FileEntry() = delete;
   FileEntry(const char* filename, CompressionMethod method);
-  FileEntry(const std::string& str, CompressionMethod method);
+  FileEntry(const std::string& str, CompressionMethod method)
+      : FileEntry(str.c_str(), method) {}
 
   LengthType get_name_length() const {
     return static_cast<LengthType>(m_filename.length());
@@ -37,6 +38,8 @@ class FileEntry {
                                            Offset off_local_file_header) const;
 
  private:
+  std::vector<Byte> m_raw;
+
   OptVersion m_ver_made;
   OptVersion m_ver_extract;
   GeneralPurpose m_general_purpose;
@@ -50,7 +53,6 @@ class FileEntry {
   std::string m_filename;
   std::string m_comment;
 
-  std::vector<Byte> m_raw;
   std::shared_ptr<Compressor> m_compressor;
 };
 

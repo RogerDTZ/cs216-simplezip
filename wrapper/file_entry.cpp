@@ -14,11 +14,9 @@
 
 namespace sz {
 
-FileEntry::FileEntry(const std::string& str, CompressionMethod method)
-    : FileEntry(str.c_str(), method) {}
-
 FileEntry::FileEntry(const char* filename, CompressionMethod method)
-    : m_ver_made{Version},
+    : m_raw(io::read_bytes(filename)),
+      m_ver_made{Version},
       m_ver_extract{ExtractVersion},
       m_general_purpose{0},
       m_method{method},
@@ -28,7 +26,6 @@ FileEntry::FileEntry(const char* filename, CompressionMethod method)
       m_internal_attr{0},
       m_external_attr{0},
       m_filename{filename} {
-  m_raw = io::read_bytes(filename);
   m_crc32 = crc32::calculate(&m_raw[0], m_raw.size());
   switch (m_method) {
     case CompressionMethod::none:

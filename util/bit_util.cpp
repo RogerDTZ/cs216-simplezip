@@ -58,6 +58,13 @@ void BitFlowBuilder::write_bits(uint32 payload, int n, const bool little_end) {
   }
 }
 
+void BitFlowBuilder::align_to_byte(const int bit) {
+  int t = 8 - m_cur_bit;
+  while (t--) {
+    write_bit(bit & 1);
+  }
+}
+
 #if defined(BUILD_TEST) && defined(SZ_USE_REVERSEBIT_TABLE)
 void BitFlowBuilder::write_bits_no_rev_table(uint32 payload, int n, const bool little_end) {
   if (!little_end) {
