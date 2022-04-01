@@ -1,15 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project configuration
-project(SimpleZip)
+project(simplezip VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
-
-# Third party build
-add_subdirectory(third_party/googletest)
 
 # Options
 option(SZ_ENABLE_FREAD_FWRITE "Use fread/fwrite when reading/writing file.")
 option(SZ_USE_REVERSEBIT_TABLE "Use reverse bit table.")
+option(SZ_BUILD_APP "Build application.")
 option(SZ_BUILD_TEST "Build tests.")
 
 # Generate tables
@@ -60,9 +58,9 @@ target_sources(sz
 	"${CMAKE_SOURCE_DIR}/wrapper/file_entry.cpp"
 	"${CMAKE_SOURCE_DIR}/wrapper/version.hpp"
 	"${CMAKE_SOURCE_DIR}/wrapper/zipper.cpp"
-	"${CMAKE_SOURCE_DIR}/compress/algo_store.hpp"
-	"${CMAKE_SOURCE_DIR}/compress/algo_deflate.hpp"
-	"${CMAKE_SOURCE_DIR}/compress/deflate.cpp"
+	"${CMAKE_SOURCE_DIR}/compress/cps_store.hpp"
+	"${CMAKE_SOURCE_DIR}/compress/cps_deflate.hpp"
+	"${CMAKE_SOURCE_DIR}/compress/cps_deflate.cpp"
 
 	${TABLE_DEFLATE}
 	
@@ -98,16 +96,30 @@ if (SZ_USE_REVERSEBIT_TABLE)
 endif()
 
 # Application build
-add_executable(app "app/main.cpp")
-target_link_libraries(
-	app
-	sz
-)
+if (SZ_BUILD_APP)
+	include(FetchContent)
+	FetchContent_Declare(
+	  cli11
+	  GIT_REPOSITORY https://github.com/CLIUtils/CLI11
+	  GIT_TAG        v2.2.0
+	)
+	FetchContent_MakeAvailable(cli11)
+	
+	add_executable(app "app/main.cpp")
+	set_target_properties(app PROPERTIES OUTPUT_NAME "simplezip")
+	target_link_libraries(
+		app
+		sz
+		CLI11::CLI11
+	)
+endif()
 
 # Tests
 if (SZ_BUILD_TEST)
 	enable_testing()
 
+	# Third party build
+	add_subdirectory(third_party/googletest)
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 	target_compile_definitions(sz PUBLIC "BUILD_TEST")
@@ -128,3 +140,19 @@ if (SZ_BUILD_TEST)
 	add_test(NAME "sz_tests" COMMAND "sz_tests")
 endif()
 
+# Install
+install(
+	TARGETS sz
+	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
+	RUNTIME DESTINATION bin
+)
+install(
+	DIRECTORY ${SZ_PUBLIC_INCLUDE_DIR} DESTINATION include
+)
+if (SZ_BUILD_APP)
+	install(
+		TARGETS app
+		RUNTIME DESTINATION bin
+	)
+endif()

@@ -4,8 +4,8 @@
 
 #include "util/byte_util.hpp"
 
-#include "compress/algo_deflate.hpp"
-#include "compress/algo_store.hpp"
+#include "compress/cps_deflate.hpp"
+#include "compress/cps_store.hpp"
 #include "crc/crc32.hpp"
 #include "sz/fs.hpp"
 #include "sz/log.hpp"

@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "sz/sz.hpp"
 
-constexpr int BitFlowLen = 1 << 20;
+constexpr int BitFlowLen = 1 << 25;
 constexpr int SingleDataMaxLen = 18;
 
 TEST(util, BitFlowBuilder_size) {

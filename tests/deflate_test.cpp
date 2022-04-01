@@ -1,6 +1,6 @@
 #include <fstream>
 
-#include "compress/algo_deflate.hpp"
+#include "compress/cps_deflate.hpp"
 #include "gtest/gtest.h"
 
 TEST(defalte, dictionary) {

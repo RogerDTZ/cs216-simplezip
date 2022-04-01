@@ -1,47 +1,60 @@
 #include <string>
 
+#include "CLI/App.hpp"
+#include "CLI/Config.hpp"
+#include "CLI/Formatter.hpp"
 #include "sz/sz.hpp"
 
-inline std::pair<std::string, std::string> arg_read(int argc, char** args) {
-  std::string src_filename;
-  std::string dst_filename;
-  if (argc < 2) {
-    sz::log::panic("usage: ", args[0], " <source_filename> [target_filename] [-v | --verbose]");
-  }
-  src_filename = std::string{args[1]};
-  if (argc >= 3) {
-    dst_filename = std::string{args[2]};
-  } else {
-    auto suffix_pos = src_filename.find_last_of('.');
-    if (suffix_pos == std::string::npos) {
-      suffix_pos = src_filename.length();
-    }
-    dst_filename = src_filename.substr(0, suffix_pos) + std::string{".zip"};
-  }
-  for (int i = 1; i < argc; ++i) {
-    auto a = std::string{args[i]};
-    if (a == "-v" || a == "--verbose") {
-      sz::log::log_info_switch = true;
-    }
-  }
-  return std::make_pair(src_filename, dst_filename);
-}
+int main(int argc, char** argv) {
+  CLI::App app{"simplezip"};
 
+  std::string source_filename;
+  app.add_option("source", source_filename, "The source file to be compressed.")
+      ->required();
 
-int main(int argc, char **args) {
-  // Process command arguments.
-  auto filename_pair = arg_read(argc, args);
-  std::string src_filename{filename_pair.first};
-  std::string dst_filename{filename_pair.second};
+  std::string target_filename;
+  app.add_option("target", target_filename, "The filename of the result.");
+
+  app.add_flag("-v,--verbose", sz::log::log_info_switch, "Verbose mode");
+
+  std::string arg_compress_method{""};
+  app.add_option("-m,--method", arg_compress_method, "store | deflate");
+
+  CLI11_PARSE(app, argc, argv)
+
+  sz::CompressionMethod compress_method = sz::CompressionMethod::deflate;
+  try {
+    if (!app.get_option("target")->count()) {
+      auto suffix_pos = source_filename.find_last_of('.');
+      if (suffix_pos == std::string::npos) {
+        suffix_pos = source_filename.length();
+      }
+      target_filename =
+          source_filename.substr(0, suffix_pos) + std::string{".zip"};
+    }
+
+    if (arg_compress_method.empty()) {
+      compress_method = sz::CompressionMethod::deflate;
+    } else if (arg_compress_method == "store") {
+      compress_method = sz::CompressionMethod::none;
+    } else if (arg_compress_method == "deflate") {
+      compress_method = sz::CompressionMethod::deflate;
+    } else {
+      throw CLI::ParseError(
+          "unrecognized compress method: " + arg_compress_method, 1);
+    }
+  } catch (const CLI::ParseError& e) {
+    sz::log::panic(e.what());
+  }
 
   sz::Zipper zipper;
-  sz::FileEntry file(src_filename, sz::CompressionMethod::deflate);
+  const sz::FileEntry file(source_filename, compress_method);
   zipper.add_entry(file);
 
   zipper.update_buffer();
 
   std::cerr << "writing zip ... ";
-  if (!zipper.write(dst_filename)) {
+  if (!zipper.write(target_filename)) {
     std::cerr << "fail" << std::endl;
   } else {
     std::cerr << "success" << std::endl;
