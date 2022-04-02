@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "sz/compressor.hpp"
+#include "compress/compressor.hpp"
 
 namespace sz {
 
@@ -22,7 +22,6 @@ class StoreCompressor final : public Compressor {
   void write_result(Byte* dst) override {
     memcpy(dst, m_src, sizeof(Byte) * m_src_len);
   }
-
 };
 
 }  // namespace sz

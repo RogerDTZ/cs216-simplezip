@@ -1,8 +1,9 @@
+#include "compress/cps_deflate.hpp"
+
 #include <iomanip>
 
 #include "util/progress_bar.hpp"
 
-#include "compress/cps_deflate.hpp"
 #include "compress/table_deflate.hpp"
 #include "sz/log.hpp"
 

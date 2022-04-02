@@ -7,6 +7,7 @@
 namespace sz {
 
 constexpr uint32 BYTE_MASK = (1u << 8) - 1;
+
 constexpr uint32 GetLowBits(const uint32 x, const int n) {
   return x & ((1 << n) - 1);
 }
@@ -66,7 +67,8 @@ void BitFlowBuilder::align_to_byte(const int bit) {
 }
 
 #if defined(BUILD_TEST) && defined(SZ_USE_REVERSEBIT_TABLE)
-void BitFlowBuilder::write_bits_no_rev_table(uint32 payload, int n, const bool little_end) {
+void BitFlowBuilder::write_bits_no_rev_table(uint32 payload, int n,
+                                             const bool little_end) {
   if (!little_end) {
     payload = reverse_bits(payload, n);
   }

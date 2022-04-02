@@ -18,6 +18,7 @@ extern uint32 reverse_bits_no_table(uint32 payload, int n);
 class BitFlowBuilder {
  public:
   BitFlowBuilder() : BitFlowBuilder(16 << 3) {}
+
   // Init the bit flow with initial size (in bits).
   BitFlowBuilder(size_t init_size)
       : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(0) {

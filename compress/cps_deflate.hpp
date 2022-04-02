@@ -6,7 +6,7 @@
 #include "util/bit_util.hpp"
 #include "util/progress_bar.hpp"
 
-#include "sz/compressor.hpp"
+#include "compress/compressor.hpp"
 #include "sz/types.hpp"
 
 namespace sz {
@@ -67,6 +67,7 @@ constexpr size_t Hash3bHeadSize = 257 * 257 * 257;
 class DeflateDictionary final {
  public:
   DeflateDictionary() : m_head3b(), m_hash(), m_left(0) {}
+
   DeflateDictionary(const DeflateDictionary&) = delete;
   DeflateDictionary& operator=(const DeflateDictionary&) = delete;
   DeflateDictionary(DeflateDictionary&&) = delete;
@@ -84,6 +85,7 @@ class DeflateDictionary final {
     LLNode* next;
     size_t pos;
   };
+
   std::array<LLNode*, Hash3bHeadSize> m_head3b;
   std::array<uint64, HashBufferSize> m_hash;
   size_t m_left;

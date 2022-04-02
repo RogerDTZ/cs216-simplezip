@@ -1,8 +1,8 @@
 #include "sz/zipper.hpp"
 
 #include "util/byte_util.hpp"
+#include "util/fs.hpp"
 
-#include "sz/fs.hpp"
 #include "wrapper/constants.hpp"
 
 namespace sz {

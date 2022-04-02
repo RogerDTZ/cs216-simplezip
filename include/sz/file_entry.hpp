@@ -4,10 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "sz/compressor.hpp"
 #include "sz/types.hpp"
 
 namespace sz {
+
+class Compressor;
 
 class FileEntry {
  public:
@@ -28,9 +29,7 @@ class FileEntry {
     return static_cast<SizeType>(m_raw.size());
   }
 
-  SizeType get_compressed_size() const {
-    return static_cast<SizeType>(m_compressor->get_length_compressed());
-  }
+  SizeType get_compressed_size() const;
 
   void write_local_file_header(std::vector<Byte>& buffer) const;
   void write_file_block(std::vector<Byte>& buffer) const;

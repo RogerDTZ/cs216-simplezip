@@ -9,6 +9,7 @@ namespace sz {
 class ProgressBar {
  public:
   ProgressBar() = delete;
+
   ProgressBar(std::string display_name, std::ostream* os, size_t workload,
               int width, char ch_space, char ch_fill, char ch_bound)
       : m_display_name(std::move(display_name)),

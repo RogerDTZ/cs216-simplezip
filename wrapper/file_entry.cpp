@@ -3,12 +3,12 @@
 #include <cassert>
 
 #include "util/byte_util.hpp"
+#include "util/fs.hpp"
 
+#include "compress/compressor.hpp"
 #include "compress/cps_deflate.hpp"
 #include "compress/cps_store.hpp"
 #include "crc/crc32.hpp"
-#include "sz/fs.hpp"
-#include "sz/log.hpp"
 #include "wrapper/constants.hpp"
 #include "wrapper/version.hpp"
 
@@ -38,6 +38,10 @@ FileEntry::FileEntry(const char* filename, CompressionMethod method)
   }
   m_compressor->feed(&m_raw[0], m_raw.size());
   m_compressor->compress();
+}
+
+SizeType FileEntry::get_compressed_size() const {
+  return static_cast<SizeType>(m_compressor->get_length_compressed());
 }
 
 void FileEntry::write_local_file_header(std::vector<Byte>& buffer) const {
