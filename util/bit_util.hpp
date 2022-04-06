@@ -21,7 +21,7 @@ class BitFlowBuilder {
 
   // Init the bit flow with initial size (in bits).
   BitFlowBuilder(size_t init_size)
-      : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(0) {
+      : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(static_cast<int>(init_size & 7)) {
     m_cap = 1;
     while (m_cap < m_bytes.capacity()) {
       m_cap <<= 1;
@@ -40,6 +40,9 @@ class BitFlowBuilder {
   // Comparison of not using reverse bit table.
   void write_bits_no_rev_table(uint32 payload, int n, bool little_end = true);
 #endif
+
+  // Append another bit flow to its end.
+  void append(const BitFlowBuilder& rhs);
 
   // Align to byte using the bit.
   void align_to_byte(int bit);

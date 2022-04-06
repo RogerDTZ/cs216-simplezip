@@ -59,6 +59,55 @@ void BitFlowBuilder::write_bits(uint32 payload, int n, const bool little_end) {
   }
 }
 
+void BitFlowBuilder::append(const BitFlowBuilder& rhs) {
+  // Fill the first byte's high 8 - offset bits with low 8 - offset bits of
+  // rhs's first byte. Each following byte consists of high offset bits of
+  // rhs's current byte and low 8 - offset bits of rhs's next byte.
+  size_t remain = rhs.get_bits_size();
+  if (!remain) {
+    return;
+  }
+  const int offset = m_cur_bit;
+  if (!offset) {
+    const Byte* p = &rhs.m_bytes[0];
+    while (remain >= 8) {
+      write_bits(*p, 8);
+      ++p;
+      remain -= 8;
+    }
+    if (remain) {
+      for (int i = 0; i < static_cast<int>(remain); ++i) {
+        write_bit(*p >> i & 1);
+      }
+    }
+  } else {
+    if (remain >= static_cast<size_t>(8) - offset) {
+      *m_cur_byte |= GetLowBits(rhs.m_bytes[0], 8 - offset) << offset;
+      remain -= static_cast<size_t>(8) - offset;
+      next_byte();
+    } else {
+      for (size_t i = 0; i < remain; ++i) {
+        write_bit((rhs.m_bytes[0] >> i) & 1);
+      }
+      return;
+    }
+    const Byte* p = &rhs.m_bytes[0];
+    for (; remain >= 8; remain -= 8) {
+      *m_cur_byte = static_cast<Byte>(
+          (*p >> (8 - offset)) | (GetLowBits(*(p + 1), 8 - offset) << offset));
+      next_byte();
+      ++p;
+    }
+    for (int i = 0; i < static_cast<int>(remain); ++i) {
+      if (i < offset) {
+        write_bit(*p >> (8 - offset + i) & 1);
+      } else {
+        write_bit(*(p + 1) >> (i - offset) & 1);
+      }
+    }
+  }
+}
+
 void BitFlowBuilder::align_to_byte(const int bit) {
   int t = 8 - m_cur_bit;
   while (t--) {

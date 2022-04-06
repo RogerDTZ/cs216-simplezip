@@ -17,8 +17,11 @@ constexpr size_t DeflateDictionarySize = 32 << 10;
 // Deflate max repeat length.
 constexpr size_t DeflateRepeatLenMax = 258;
 
-// Deflate Block Size (1024 KBytes)
+// Deflate Block Size (1024 KBytes).
 constexpr size_t DeflateBlockSize = 1024 << 10;
+
+// Deflate Thread Number.
+constexpr int DeflateThreadNum = 12;
 
 enum class DeflateCodingType { static_coding, dynamic_coding };
 

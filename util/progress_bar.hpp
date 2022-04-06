@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -25,6 +26,7 @@ class ProgressBar {
         m_display_flag(false) {}
 
   void set_display(const bool flag) {
+    std::unique_lock lock(m_mtx);
     if (flag != m_display_flag) {
       m_display_flag = flag;
       if (m_display_flag) {
@@ -37,18 +39,21 @@ class ProgressBar {
   }
 
   void increase_progress(const size_t delta) {
+    std::unique_lock lock(m_mtx);
     m_accumulate += delta;
     uniform_accumulation();
     update_percentage();
   }
 
   void set_progress(const size_t progress) {
+    std::unique_lock lock(m_mtx);
     m_accumulate = progress;
     uniform_accumulation();
     update_percentage();
   }
 
   void set_full() {
+    std::unique_lock lock(m_mtx);
     m_accumulate = m_workload;
     update_percentage();
   }
@@ -69,6 +74,8 @@ class ProgressBar {
   int m_fill_cnt;
   bool m_display_flag;
 
+  std::mutex m_mtx;
+
   void uniform_accumulation() {
     if (m_accumulate > m_workload) {
       m_accumulate = m_workload;
@@ -88,6 +95,9 @@ class ProgressBar {
   }
 
   void flush_display() const {
+    if (!m_display_flag) {
+      return;
+    }
     *m_os << m_display_name << " [";
     for (int i = 0; i < m_fill_cnt - 1; ++i) {
       *m_os << m_ch_fill;

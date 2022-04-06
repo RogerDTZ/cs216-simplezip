@@ -54,6 +54,7 @@ inline size_t write_bytes(const char* filename,
   }
 
 #ifdef SZ_IO_USE_FREAD_FWRITE
+  ofs.close();
   FILE* file = nullptr;
   fopen_s(&file, filename, "wb");
   if (!file) {

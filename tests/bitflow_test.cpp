@@ -90,3 +90,42 @@ TEST(util, BitFlow_contentrev) {
   delete[] res;
   delete[] arr;
 }
+
+TEST(util, BitFlow_append) {
+  constexpr int Len1 = 48;
+  constexpr int Len2 = 47;
+  auto bb1 = std::make_shared<sz::BitFlowBuilder>(Len1);
+  auto bb2 = std::make_shared<sz::BitFlowBuilder>(Len2);
+
+  int* arr = new int[Len1 + Len2];
+  for (int i = 0; i < Len1 + Len2; ++i) {
+    arr[i] = rand() % 2;
+  }
+  for (int i = 0, j; i < Len1; i = j + 1) {
+    j = i + rand() % std::min(Len1 - i, SingleDataMaxLen);
+    sz::uint32 val = 0;
+    for (int k = i; k <= j; ++k) {
+      val |= arr[k] << (k - i);
+    }
+    bb1->write_bits(val, j - i + 1);
+  }
+  for (int i = Len1, j; i < Len1 + Len2; i = j + 1) {
+    j = i + rand() % std::min(Len1 + Len2 - i, SingleDataMaxLen);
+    sz::uint32 val = 0;
+    for (int k = i; k <= j; ++k) {
+      val |= arr[k] << (k - i);
+    }
+    bb2->write_bits(val, j - i + 1);
+  }
+
+  bb1->append(*bb2);
+
+  const auto res = new sz::Byte[bb1->get_bytes_size()];
+  bb1->export_bitflow(res);
+  for (int i = 0; i < Len1 + Len2; ++i) {
+    EXPECT_EQ((res[i >> 3] >> (i & 7)) & 1, arr[i]);
+  }
+
+  delete[] res;
+  delete[] arr;
+}

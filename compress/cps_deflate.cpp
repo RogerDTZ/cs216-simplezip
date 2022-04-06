@@ -1,6 +1,7 @@
 #include "compress/cps_deflate.hpp"
 
 #include <iomanip>
+#include <thread>
 
 #include "util/progress_bar.hpp"
 
@@ -24,55 +25,85 @@ size_t DeflateCompressor::compress() {
   delete[] m_res;
   m_res_len = 0;
 
-  std::vector<DeflateItem> items;
-  items.reserve(DeflateBlockSize << 1);
-  auto dict = std::make_shared<DeflateDictionary>();
-
-  auto bb = std::make_shared<BitFlowBuilder>(m_src_len << 3);
-
   ProgressBar bar(std::string("deflate: "), &std::cerr, m_src_len, 30, ' ', '=',
                   '>');
-  bar.set_display(true);
+  bar.set_display(false);
 
-  for (const Byte *p = m_src, *q, *end = m_src + m_src_len; p < end; p = q) {
-    q = p + DeflateBlockSize <= end ? p + DeflateBlockSize : end;
-    if (static_cast<size_t>(end - q) < DeflateBlockSize) {
-      q = end;
-    }
-
-    dict->calc(p, q - p, items, bar);
-
-    switch (m_coding_type) {
-      case DeflateCodingType::static_coding: {
-        size_t bit_cnt = 3;
-        for (const auto& item : items) {
-          bit_cnt += bb_write_deflate_item_static(bb, item, false);
-        }
-        if (((bit_cnt + 7) >> 3) >= static_cast<size_t>(q - p)) {
-          bb_write_store(bb, p, q - p, q == end);
-          log::log((bit_cnt + 7) >> 3, "(deflate) v.s. ", q - p,
-                   "(original), use store");
-        } else {
-          bb->write_bit(q == end);
-          bb->write_bits(0b01, 2);
-          for (const auto& item : items) {
-            bb_write_deflate_item_static(bb, item);
+  auto work_thread =
+      [this](const Byte* st, const Byte* ed, const bool last_section,
+             std::shared_ptr<BitFlowBuilder>& bb, ProgressBar& bar) {
+        std::vector<DeflateItem> items;
+        items.reserve(DeflateBlockSize << 1);
+        auto dict = std::make_shared<DeflateDictionary>();
+        bb = std::make_shared<BitFlowBuilder>((ed - st) << 3);
+        for (const Byte *p = st, *q; p < ed; p = q) {
+          q = p + DeflateBlockSize <= ed ? p + DeflateBlockSize : ed;
+          if (static_cast<size_t>(ed - q) < DeflateBlockSize) {
+            q = ed;
           }
-          bb_write_deflate_item_static(bb,
-                                       DeflateItem{DeflateItemType::stop, 0});
-          log::log((bit_cnt + 7) >> 3, "(deflate) v.s. ", q - p,
-                   "(original), use deflate");
-        }
-      } break;
-      case DeflateCodingType::dynamic_coding:
-        log::panic("Dynamic coding not implemented.");
-        break;
-    }
-    items.clear();
-  }
 
+          auto start = std::chrono::system_clock::now();
+          dict->calc(p, q - p, items, bar);
+          auto end = std::chrono::system_clock::now();
+          std::chrono::duration<double> elapsed_seconds = end - start;
+          std::cerr << "elapsed time (" << std::this_thread::get_id()
+                    << "): " << elapsed_seconds.count() << " for " << q - p
+                    << "bytes: " << p - m_src << " ~ " << q - m_src << std::endl;
+
+          switch (m_coding_type) {
+            case DeflateCodingType::static_coding: {
+              size_t bit_cnt = 3;
+              for (const auto& item : items) {
+                bit_cnt += bb_write_deflate_item_static(bb, item, false);
+              }
+              if (((bit_cnt + 7) >> 3) >= static_cast<size_t>(q - p)) {
+                bb_write_store(bb, p, q - p, q == ed && last_section);
+                log::log((bit_cnt + 7) >> 3, "(deflate) v.s. ", q - p,
+                         "(original), use store");
+              } else {
+                bb->write_bit(q == ed && last_section);
+                bb->write_bits(0b01, 2);
+                for (const auto& item : items) {
+                  bb_write_deflate_item_static(bb, item);
+                }
+                bb_write_deflate_item_static(
+                    bb, DeflateItem{DeflateItemType::stop, 0});
+                log::log((bit_cnt + 7) >> 3, "(deflate) v.s. ", q - p,
+                         "(original), use deflate");
+              }
+            } break;
+            case DeflateCodingType::dynamic_coding:
+              log::panic("Dynamic coding not implemented.");
+              break;
+          }
+          items.clear();
+        }
+      };
+
+  const int block_cnt =
+      static_cast<int>((m_src_len + DeflateBlockSize - 1) / DeflateBlockSize);
+  const int thread_cnt = std::min(block_cnt, DeflateThreadNum);
+  const int each_cnt = (block_cnt + thread_cnt - 1) / thread_cnt;
+  std::vector<std::shared_ptr<BitFlowBuilder>> bbs(thread_cnt);
+  std::vector<std::shared_ptr<std::thread>> threads(thread_cnt);
+  const Byte* p = m_src;
+  const Byte* ed = m_src + m_src_len;
+  for (int i = 0; i < thread_cnt; ++i) {
+    const Byte* q = std::min(p + each_cnt * DeflateBlockSize, ed);
+    threads[i] = std::make_shared<std::thread>(work_thread, p, q, q == ed,
+                                               std::ref(bbs[i]), std::ref(bar));
+    p = q;
+  }
+  for (int i = 0; i < thread_cnt; ++i) {
+    threads[i]->join();
+  }
   bar.set_full();
   bar.set_display(false);
+
+  auto bb = std::make_shared<BitFlowBuilder>(m_src_len << 3);
+  for (int i = 0; i < thread_cnt; ++i) {
+    bb->append(*bbs[i]);
+  }
 
   m_res_len = bb->get_bytes_size();
   m_res = new Byte[m_res_len];
