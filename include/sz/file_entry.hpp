@@ -13,23 +13,25 @@ class Compressor;
 class FileEntry {
  public:
   FileEntry() = delete;
-  FileEntry(const char* filename, CompressionMethod method);
-  FileEntry(const std::string& str, CompressionMethod method)
-      : FileEntry(str.c_str(), method) {}
+  FileEntry(const char* filename, CompressionMethod method, size_t thread_cnt);
+  FileEntry(const std::string& str, CompressionMethod method, size_t thread_cnt)
+      : FileEntry(str.c_str(), method, thread_cnt) {}
 
-  LengthType get_name_length() const {
+  void compress();
+
+  [[nodiscard]] LengthType get_name_length() const {
     return static_cast<LengthType>(m_filename.length());
   }
 
-  LengthType get_comment_length() const {
+  [[nodiscard]] LengthType get_comment_length() const {
     return static_cast<LengthType>(m_comment.length());
   }
 
-  SizeType get_uncompressed_size() const {
+  [[nodiscard]] SizeType get_uncompressed_size() const {
     return static_cast<SizeType>(m_raw.size());
   }
 
-  SizeType get_compressed_size() const;
+  [[nodiscard]] SizeType get_compressed_size() const;
 
   void write_local_file_header(std::vector<Byte>& buffer) const;
   void write_file_block(std::vector<Byte>& buffer) const;

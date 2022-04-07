@@ -49,3 +49,56 @@ TEST(defalte, dictionary) {
     EXPECT_EQ(cur, src.size());
   }
 }
+
+class RunLengthCodeTest : public testing::TestWithParam<int> {
+ protected:
+  int n;
+};
+
+TEST_P(RunLengthCodeTest, encode_decode) {
+  n = GetParam();
+  std::vector<int> data(n);
+  for (int i = 0, j; i < n; i = j + 1) {
+    j = i + rand() % std::min(n - i, 200);
+    const int x = rand() % 16;
+    for (int k = i; k <= j; ++k) {
+      data[k] = x;
+    }
+  }
+
+  auto code = sz::run_length_encode(data);
+
+  std::vector<int> decoded;
+  for (auto&& item: code) {
+    auto [x, y] = sz::run_length_decode(item);
+    if (x <= 15) {
+      decoded.push_back(x);
+    } else if (x == 16) {
+      EXPECT_FALSE(decoded.empty());
+      const auto std_val = decoded.back();
+      EXPECT_TRUE(3 <= y && y <= 6);
+      while (y--) {
+        decoded.push_back(std_val);
+      }
+    } else if (x == 17) {
+      EXPECT_TRUE(3 <= y && y <= 10);
+      while (y--) {
+        decoded.push_back(0);
+      }
+    } else {
+      EXPECT_EQ(x, 18);
+      EXPECT_TRUE(11 <= y && y <= 138);
+      while (y--) {
+        decoded.push_back(0);
+      }
+    }
+  }
+  
+  EXPECT_EQ(data.size(), decoded.size());
+  for (size_t i = 0; i < data.size(); ++i) {
+    EXPECT_EQ(data[i], decoded[i]);
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(DeflateTest, RunLengthCodeTest, testing::Values(100, 1000, 10000, 100000));
+

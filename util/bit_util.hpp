@@ -10,10 +10,7 @@ namespace sz {
 constexpr int BIT_REVERSE_TABLE_LEN = 15;
 #endif
 
-extern uint32 reverse_bits(uint32 payload, int n);
-#ifdef BUILD_TEST
-extern uint32 reverse_bits_no_table(uint32 payload, int n);
-#endif
+uint64 reverse_bits(uint64 payload, int n);
 
 class BitFlowBuilder {
  public:
@@ -21,7 +18,7 @@ class BitFlowBuilder {
 
   // Init the bit flow with initial size (in bits).
   BitFlowBuilder(size_t init_size)
-      : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(static_cast<int>(init_size & 7)) {
+      : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(0) {
     m_cap = 1;
     while (m_cap < m_bytes.capacity()) {
       m_cap <<= 1;
@@ -35,7 +32,7 @@ class BitFlowBuilder {
   void write_bit(int payload);
   // Append the low n bits of payload to the bit flow.
   // Little end is used by default.
-  void write_bits(uint32 payload, int n, bool little_end = true);
+  void write_bits(uint64 payload, int n, bool little_end = true);
 #if defined(BUILD_TEST) && defined(SZ_USE_REVERSEBIT_TABLE)
   // Comparison of not using reverse bit table.
   void write_bits_no_rev_table(uint32 payload, int n, bool little_end = true);

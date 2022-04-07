@@ -19,6 +19,7 @@ set(SZ_BUILD_APP ON CACHE BOOL "" FORCE)
 set(SZ_PUBLIC_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/sz")
 
 set(SZ_LIBSRC_INCLUDE
+	"${SZ_PUBLIC_INCLUDE_DIR}/common.hpp"
 	"${SZ_PUBLIC_INCLUDE_DIR}/file_entry.hpp"
 	"${SZ_PUBLIC_INCLUDE_DIR}/log.hpp"
 	"${SZ_PUBLIC_INCLUDE_DIR}/sz.hpp"

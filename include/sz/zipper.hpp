@@ -13,7 +13,10 @@ class Zipper {
   [[nodiscard]] size_t n_entries() const { return m_entries.size(); }
   [[nodiscard]] size_t get_comment_length() const { return m_comment.length(); }
 
-  void add_entry(const FileEntry& entry) { m_entries.push_back(entry); }
+  void add_entry(FileEntry&& entry) {
+    entry.compress();
+    m_entries.push_back(entry);
+  }
   void update_buffer();
   [[nodiscard]] bool ready() const { return m_buffer_ready; }
   [[nodiscard]] bool write(const char* filename) const;

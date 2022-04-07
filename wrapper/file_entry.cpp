@@ -9,12 +9,13 @@
 #include "compress/cps_deflate.hpp"
 #include "compress/cps_store.hpp"
 #include "crc/crc32.hpp"
+#include "sz/common.hpp"
 #include "wrapper/constants.hpp"
 #include "wrapper/version.hpp"
 
 namespace sz {
 
-FileEntry::FileEntry(const char* filename, CompressionMethod method)
+FileEntry::FileEntry(const char* filename, CompressionMethod method, size_t thread_cnt)
     : m_raw(io::read_bytes(filename)),
       m_ver_made{Version},
       m_ver_extract{ExtractVersion},
@@ -32,12 +33,26 @@ FileEntry::FileEntry(const char* filename, CompressionMethod method)
       m_compressor = std::make_shared<StoreCompressor>();
       break;
     case CompressionMethod::deflate:
-      m_compressor =
-          std::make_shared<DeflateCompressor>(DeflateCodingType::static_coding);
+      m_compressor = std::make_shared<DeflateCompressor>(
+          deflate_use_static ? DeflateCodingType::static_coding
+                             : DeflateCodingType::dynamic_coding,
+          thread_cnt);
       break;
   }
   m_compressor->feed(&m_raw[0], m_raw.size());
   m_compressor->compress();
+}
+
+void FileEntry::compress() {
+  m_compressor->compress();
+  if (m_method != CompressionMethod::none &&
+      m_compressor->get_length_compressed() > m_raw.size()) {
+    log::log("Use store instead.");
+    m_method = CompressionMethod::none;
+    m_compressor = std::make_shared<StoreCompressor>();
+    m_compressor->feed(&m_raw[0], m_raw.size());
+    m_compressor->compress();
+  }
 }
 
 SizeType FileEntry::get_compressed_size() const {
