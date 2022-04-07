@@ -9,12 +9,14 @@
 int main(int argc, char** argv) {
   CLI::App app{"simplezip"};
 
-  std::string source_filename;
-  app.add_option("source", source_filename, "The source file to be compressed.")
+  std::string target_filename;
+  app.add_option("target", target_filename, "The filename of the result.")
       ->required();
 
-  std::string target_filename;
-  app.add_option("target", target_filename, "The filename of the result.");
+  std::vector<std::string> source_filenames;
+  app.add_option<std::vector<std::string>>("source", source_filenames,
+                                           "The source file to be compressed.")
+      ->required();
 
   app.add_flag("-v,--verbose", sz::log_info_switch, "Verbose mode");
 
@@ -35,15 +37,6 @@ int main(int argc, char** argv) {
 
   sz::CompressionMethod compress_method = sz::CompressionMethod::deflate;
   try {
-    if (!app.get_option("target")->count()) {
-      auto suffix_pos = source_filename.find_last_of('.');
-      if (suffix_pos == std::string::npos) {
-        suffix_pos = source_filename.length();
-      }
-      target_filename =
-          source_filename.substr(0, suffix_pos) + std::string{".zip"};
-    }
-
     if (arg_compress_method.empty()) {
       compress_method = sz::CompressionMethod::deflate;
     } else if (arg_compress_method == "store") {
@@ -66,9 +59,11 @@ int main(int argc, char** argv) {
   auto start = std::chrono::system_clock::now();
 
   sz::Zipper zipper;
-  sz::FileEntry file(source_filename, compress_method, thread_cnt);
-  file.compress();
-  zipper.add_entry(std::move(file));
+  for (auto&& source_filename : source_filenames) {
+    sz::FileEntry file(source_filename, compress_method, thread_cnt);
+    file.compress();
+    zipper.add_entry(std::move(file));
+  }
   zipper.update_buffer();
 
   auto end = std::chrono::system_clock::now();
