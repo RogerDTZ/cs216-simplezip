@@ -259,97 +259,59 @@ void DeflateDictionary::calc(const Byte* src, size_t n,
     const auto hash3b = get_hash3b(src[i], i < n - 1 ? src[i + 1] : -1,
                                    i < n - 2 ? src[i + 2] : -1);
     if (skip == 0) {
-      LLNode* th = nullptr;
-      for (LLNode *p = m_head3b[hash3b], *q; p; p = q) {
-        q = p->next;
-        if (p->pos >= m_left) {
-          p->next = th;
-          th = p;
-        } else {
-          delete p;
-        }
-      }
-      m_head3b[hash3b] = th;
-      if (m_head3b[hash3b]) {
-        th = nullptr;
-        for (LLNode* p = m_head3b[hash3b]; p; p = p->next) {
-          th = new LLNode{th, p->pos};
-        }
-
-        auto classify =
-            [&](LLNode* head, const size_t len,
-                const size_t equal_len) -> std::pair<LLNode*, LLNode*> {
-          const uint64 std_val = get_hash(i, len);
-          LLNode* yes = nullptr;
-          LLNode* no = nullptr;
-          const bool single = equal_len == len - 1;
-          for (LLNode *p = head, *q; p; p = q) {
-            q = p->next;
-            if ((single && src[p->pos + equal_len] == src[i + equal_len]) ||
-                (!single && get_hash(p->pos, len) == std_val &&
-                 memcmp(src + p->pos + equal_len, src + i + equal_len,
-                        len - equal_len) == 0)) {
-              p->next = yes;
-              yes = p;
-            } else {
-              p->next = no;
-              no = p;
+      if (!m_head3b[hash3b] || m_head3b[hash3b]->pos < m_left) {
+        res.push_back(DeflateItem{DeflateItemType::literal, src[i]});
+        ++finished_bytes;
+      } else {
+        size_t checked = 0;
+        size_t max_check = DeflateDictionaryConfig[deflate_lz77_level][0];
+        size_t max_match_len = 0;
+        size_t max_match_pos = 0;
+        for (const LLNode* p = m_head3b[hash3b]; p && p->pos >= m_left; p = p->next) {
+          size_t match_len = max_match_len;
+          if (match_len == 0) {
+            match_len = 3;
+          }
+          bool base_ok = true;
+          if (match_len > 3) {
+            if (get_hash(p->pos, match_len) != get_hash(i, match_len) ||
+                memcmp(src + p->pos + 3, src + i + 3, match_len - 3) != 0) {
+              base_ok = false;
             }
           }
-          return std::make_pair(yes, no);
-        };
 
-        const size_t bf_range = std::min(SmallFilter, n - i);
-        size_t l = 3;
-        size_t final_len = 3;
-        while (l < bf_range) {
-          auto [yes, no] = classify(th, l + 1, l);
-          if (yes) {
-            ++l;
-            for (LLNode* q; no; no = q) {
-              q = no->next;
-              delete no;
+          if (base_ok) {
+            while (i + match_len < n && match_len < DeflateRepeatLenMax && src[p->pos + match_len] == src[i + match_len]) {
+              ++match_len;
             }
-            th = yes;
-          } else {
-            final_len = l;
-            th = no;
+            if (match_len > max_match_len) {
+              max_match_len = match_len;
+              max_match_pos = p->pos;
+              if (max_match_len >=
+                  DeflateDictionaryConfig[deflate_lz77_level][3]) {
+                break;
+              } else if (max_match_len >=
+                         DeflateDictionaryConfig[deflate_lz77_level][2]) {
+                max_check = DeflateDictionaryConfig[deflate_lz77_level][0] >> 4;
+              } else if (max_match_len >=
+                         DeflateDictionaryConfig[deflate_lz77_level][1]) {
+                max_check = DeflateDictionaryConfig[deflate_lz77_level][0] >> 2;
+              }
+            }
+          }
+
+          ++checked;
+          if (checked >= max_check) {
             break;
           }
         }
-        if (l == bf_range && l < n - i) {
-          ++l;
-          size_t r = static_cast<int>(std::min(DeflateRepeatLenMax, n - i));
-          while (l <= r) {
-            const size_t mid = (l + r) >> 1;
-            auto [yes, no] = classify(th, mid, l - 1);
-            if (yes) {
-              l = mid + 1;
-              for (LLNode* q; no; no = q) {
-                q = no->next;
-                delete no;
-              }
-              th = yes;
-            } else {
-              r = mid - 1;
-              th = no;
-            }
-          }
-          final_len = r;
-        }
-        skip = final_len - 1;
+
+        skip = max_match_len - 1;
         res.push_back(DeflateItem{DeflateItemType::length,
-                                  static_cast<uint16>(final_len)});
+                                  static_cast<uint16>(max_match_len)});
         res.push_back(DeflateItem{DeflateItemType::distance,
-                                  static_cast<uint16>(i - th->pos)});
-        for (LLNode* q; th; th = q) {
-          q = th->next;
-          delete th;
-        }
-        finished_bytes += final_len;
-      } else {
-        res.push_back(DeflateItem{DeflateItemType::literal, src[i]});
-        ++finished_bytes;
+                                  static_cast<uint16>(i - max_match_pos)});
+        finished_bytes += max_match_len;
       }
       if (finished_bytes > 64) {
         bar.increase_progress(finished_bytes);
@@ -374,6 +336,12 @@ uint64 DeflateDictionary::get_hash(const size_t pos, const size_t n) const {
 
 void DeflateDictionary::reset() {
   m_left = 0;
+  for (const LLNode* u : m_head3b) {
+    for (const LLNode* next; u; u = next) {
+      next = u->next;
+      delete u;
+    }
+  }
   m_head3b.fill(nullptr);
   m_hash.fill(0ull);
 }

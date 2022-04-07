@@ -40,6 +40,14 @@ constexpr int DeflateHCLENMin = 4;
 constexpr int DeflateRLCPermutation[] = {16, 17, 18, 0, 8,  7, 9,  6, 10, 5,
                                          11, 4,  12, 3, 13, 2, 14, 1, 15};
 
+constexpr size_t DeflateDictionaryConfig[][4]{
+  /* max chain length, good(/4), nice(/16), perfect(stop) */
+  {64, 4, 8, 16},
+  {128, 8, 16, 128},
+  {512, 16, 128, 258},
+  {4096, 258, 258, 258},
+};
+
 enum class DeflateCodingType { static_coding, dynamic_coding };
 
 enum class DeflateItemType { literal, distance, length, stop };
