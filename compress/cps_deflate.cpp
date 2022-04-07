@@ -397,51 +397,6 @@ std::vector<int> HuffmanTree::calculate(const std::vector<uint64>& src) {
     ++m_bucket[x];
   }
 
-  // Huffman (heap)
-  /*
-  std::vector<int> parent(m_max_code);
-  std::fill(parent.begin(), parent.end(), -1);
-
-  struct Data {
-    size_t weight;
-    int id;
-  };
-  std::priority_queue<Data, std::vector<Data>,
-                      std::function<bool(const Data&, const Data&)>>
-      pq([](const Data& a, const Data& b) { return a.weight > b.weight; });
-  for (int i = 0; i < m_max_code; ++i) {
-    if (m_bucket[i]) {
-      pq.push(Data{m_bucket[i], i});
-    }
-  }
-  if (pq.size() == 1) {
-    const int id = static_cast<int>(parent.size());
-    parent.push_back(-1);
-    parent[pq.top().id] = id;
-    pq.pop();
-  }
-  while (pq.size() > 1) {
-    const auto lc = pq.top();
-    pq.pop();
-    const auto rc = pq.top();
-    pq.pop();
-    const int id = static_cast<int>(parent.size());
-    parent.push_back(-1);
-    parent[lc.id] = parent[rc.id] = id;
-    pq.push(Data{lc.weight + rc.weight, id});
-  }
-
-  m_dep.resize(parent.size());
-  for (int i = static_cast<int>(parent.size()) - 1; i >= 0; --i) {
-    m_dep[i] = parent[i] == -1 ? 0 : m_dep[parent[i]] + 1;
-    if (m_dep[i] > m_max_len) {
-      log::panic("huffman encoding length overflow: expected <= ", m_max_len,
-                 ", found ", m_dep[i], ", totally ", m_max_code - 1, " codes");
-    }
-  }
-  m_dep.resize(m_max_code);
-  */
-
   // Huffman (package merge)
   std::vector<int> index;
   for (int i = 0; i < m_max_code; ++i) {
