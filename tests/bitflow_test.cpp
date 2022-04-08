@@ -2,10 +2,11 @@
 #include <cstdlib>
 #include <memory>
 
+#include "sz/sz.hpp"
+
 #include "util/bit_util.hpp"
 
 #include "gtest/gtest.h"
-#include "sz/sz.hpp"
 
 constexpr int BitFlowLen = 1 << 25;
 constexpr int SingleDataMaxLen = 18;

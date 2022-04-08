@@ -8,11 +8,15 @@ DerivePointerAlignment: false
 # Order them so that when imported to the authoritative repository they will be
 # in correct alphabetical order.
 IncludeCategories:
-  - Regex:           '^(<|"(benchmarks|db|helpers)/)'
+  - Regex:           '^<'
     Priority:        1
-  - Regex:           '^"(leveldb)/'
+  - Regex:           '^"(sz)/'
     Priority:        2
-  - Regex:           '^(<|"(issues|port|table|third_party|util)/)'
+  - Regex:           '^"(compress|crc|util|wrapper)/'
     Priority:        3
-  - Regex:           '.*'
+  - Regex:           '^"(table)/'
     Priority:        4
+  - Regex:           '^"(gtest)/"'
+    Priority:        5
+  - Regex:           '.*'
+    Priority:        6

@@ -2,7 +2,6 @@
 
 #include "util/byte_util.hpp"
 #include "util/fs.hpp"
-
 #include "wrapper/constants.hpp"
 
 namespace sz {

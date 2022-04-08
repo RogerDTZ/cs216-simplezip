@@ -1,10 +1,11 @@
 #include <string>
 #include <thread>
 
+#include "sz/sz.hpp"
+
 #include "CLI/App.hpp"
 #include "CLI/Config.hpp"
 #include "CLI/Formatter.hpp"
-#include "sz/sz.hpp"
 
 int main(int argc, char** argv) {
   CLI::App app{"simplezip"};

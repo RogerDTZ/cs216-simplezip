@@ -2,20 +2,21 @@
 
 #include <cassert>
 
-#include "util/byte_util.hpp"
-#include "util/fs.hpp"
+#include "sz/common.hpp"
 
 #include "compress/compressor.hpp"
 #include "compress/cps_deflate.hpp"
 #include "compress/cps_store.hpp"
 #include "crc/crc32.hpp"
-#include "sz/common.hpp"
+#include "util/byte_util.hpp"
+#include "util/fs.hpp"
 #include "wrapper/constants.hpp"
 #include "wrapper/version.hpp"
 
 namespace sz {
 
-FileEntry::FileEntry(const char* filename, CompressionMethod method, size_t thread_cnt)
+FileEntry::FileEntry(const char* filename, CompressionMethod method,
+                     size_t thread_cnt)
     : m_raw(io::read_bytes(filename)),
       m_ver_made{Version},
       m_ver_extract{ExtractVersion},

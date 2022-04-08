@@ -4,21 +4,25 @@
 #include <cassert>
 #include <functional>
 #include <iomanip>
-#include <thread>
 #include <queue>
+#include <thread>
 
-#include "util/progress_bar.hpp"
+#include "sz/log.hpp"
 
 #include "compress/table_deflate.hpp"
-#include "sz/log.hpp"
+#include "util/progress_bar.hpp"
 
 namespace sz {
 
-DeflateCompressor::DeflateCompressor(DeflateCodingType coding_type): DeflateCompressor(coding_type, std::thread::hardware_concurrency()) {}
+DeflateCompressor::DeflateCompressor(DeflateCodingType coding_type)
+    : DeflateCompressor(coding_type, std::thread::hardware_concurrency()) {}
 
-DeflateCompressor::DeflateCompressor(DeflateCodingType coding_type, size_t thread_cnt)
-    : m_coding_type(coding_type), m_thread_cnt(thread_cnt), m_res(nullptr), m_res_len(0) {
-}
+DeflateCompressor::DeflateCompressor(DeflateCodingType coding_type,
+                                     size_t thread_cnt)
+    : m_coding_type(coding_type),
+      m_thread_cnt(thread_cnt),
+      m_res(nullptr),
+      m_res_len(0) {}
 
 size_t DeflateCompressor::compress() {
   if (m_finish) {
@@ -31,157 +35,160 @@ size_t DeflateCompressor::compress() {
                   '>');
   bar.set_display(true);
 
-  auto work_thread =
-      [this](const Byte* st, const Byte* ed, const bool last_section,
-             std::shared_ptr<BitFlowBuilder>& bb, ProgressBar& bar) {
-        std::vector<DeflateItem> items;
-        items.reserve(DeflateBlockSize << 1);
-        auto dict = std::make_shared<DeflateDictionary>();
-        bb = std::make_shared<BitFlowBuilder>((ed - st) << 3);
-        for (const Byte *p = st, *q; p < ed; p = q) {
-          q = p + DeflateBlockSize <= ed ? p + DeflateBlockSize : ed;
-          if (static_cast<size_t>(ed - q) < DeflateBlockSize) {
-            q = ed;
+  auto work_thread = [this](const Byte* st, const Byte* ed,
+                            const bool last_section,
+                            std::shared_ptr<BitFlowBuilder>& bb,
+                            ProgressBar& bar) {
+    std::vector<DeflateItem> items;
+    items.reserve(DeflateBlockSize << 1);
+    auto dict = std::make_shared<DeflateDictionary>();
+    bb = std::make_shared<BitFlowBuilder>((ed - st) << 3);
+    for (const Byte *p = st, *q; p < ed; p = q) {
+      q = p + DeflateBlockSize <= ed ? p + DeflateBlockSize : ed;
+      if (static_cast<size_t>(ed - q) < DeflateBlockSize) {
+        q = ed;
+      }
+
+      // auto start = std::chrono::system_clock::now();
+      dict->calc(p, q - p, items, bar);
+      // auto end = std::chrono::system_clock::now();
+      // std::chrono::duration<double> elapsed_seconds = end - start;
+      // std::cerr << "elapsed time (" << std::this_thread::get_id()
+      //           << "): " << elapsed_seconds.count() << " for " << q - p
+      //           << "bytes: " << p - m_src << " ~ " << q - m_src << std::endl;
+
+      items.push_back(DeflateItem{DeflateItemType::stop, DeflateEOBCode});
+      auto bb_cps = std::make_shared<BitFlowBuilder>(items.size() << 3);
+
+      switch (m_coding_type) {
+        case DeflateCodingType::static_coding: {
+          bb_cps->write_bit(q == ed && last_section);
+          bb_cps->write_bits(0b01, 2);
+          for (const auto& item : items) {
+            bb_write_deflate_item_static(bb_cps, item);
           }
-
-          // auto start = std::chrono::system_clock::now();
-          dict->calc(p, q - p, items, bar);
-          // auto end = std::chrono::system_clock::now();
-          // std::chrono::duration<double> elapsed_seconds = end - start;
-          // std::cerr << "elapsed time (" << std::this_thread::get_id()
-          //           << "): " << elapsed_seconds.count() << " for " << q - p
-          //           << "bytes: " << p - m_src << " ~ " << q - m_src << std::endl;
-
-          items.push_back(DeflateItem{DeflateItemType::stop, DeflateEOBCode});
-          auto bb_cps = std::make_shared<BitFlowBuilder>(items.size() << 3);
-
-          switch (m_coding_type) {
-            case DeflateCodingType::static_coding: {
-              bb_cps->write_bit(q == ed && last_section);
-              bb_cps->write_bits(0b01, 2);
-              for (const auto& item : items) {
-                bb_write_deflate_item_static(bb_cps, item);
-              }
-            } break;
-            case DeflateCodingType::dynamic_coding: {
-              std::vector<uint64> lit_len_eob;
-              std::vector<uint64> dis;
-              for (auto&& item : items) {
-                switch (item.type) {
-                  case DeflateItemType::literal:
-                    lit_len_eob.push_back(DeflateLiteralTable[item.val][0]);
-                    break;
-                  case DeflateItemType::length:
-                    lit_len_eob.push_back(DeflateLengthTable[item.val][0]);
-                    break;
-                  case DeflateItemType::stop:
-                    lit_len_eob.push_back(DeflateEOBCode);
-                    break;
-                  case DeflateItemType::distance:
-                    dis.push_back(DeflateDistanceTable[item.val][0]);
-                }
-              }
-              lit_len_eob.push_back(DeflateEOBCode);
-              // If no distance code, push an arbitrary one.
-              if (dis.empty()) {
-                dis.push_back(0);
-              }
-              HuffmanTree h1(DeflateLELMaxCode + 1, DeflateHuffmanMaxLen);
-              HuffmanTree h2(DeflateDisMaxCode + 1, DeflateHuffmanMaxLen);
-              HuffmanTree h3(DeflateRLCMaxCode + 1, DeflateRLCMaxLen);
-              auto cl1 = h1.calculate(lit_len_eob);
-              cl1.resize(static_cast<size_t>(h1.get_last_code()) + 1);
-              auto cl2 = h2.calculate(dis);
-              cl2.resize(static_cast<size_t>(h2.get_last_code()) + 1);
-              auto rlc1 = run_length_encode(cl1);
-              auto rlc2 = run_length_encode(cl2);
-              auto rlc_combine = rlc1;
-              rlc_combine.insert(rlc_combine.end(), rlc2.begin(), rlc2.end());
-              for (auto&& x : rlc_combine) {
-                x &= 31;
-              }
-              auto cl3 = h3.calculate(std::vector<uint64>(rlc_combine.begin(), rlc_combine.end()));
-
-              // header
-              bb_cps->write_bit(q == ed && last_section);
-              bb_cps->write_bits(0b10, 2);
-              bb_cps->write_bits(cl1.size() - DeflateHLITMin, 5);
-              bb_cps->write_bits(cl2.size() - DeflateHDISTMin, 5);
-              int rlc_last_code_index = DeflateRLCMaxCode;
-              for (int i = DeflateRLCMaxCode; i >= 0; --i) {
-                if (cl3[DeflateRLCPermutation[i]]) {
-                  rlc_last_code_index = i;
-                  break;
-                }
-              }
-              bb_cps->write_bits(
-                  static_cast<uint64>(rlc_last_code_index) + 1 - DeflateHCLENMin, 4);
-              // (HCLEN + 4) x 3 bits: code lengths for the code length
-              // alphabet given just above, in the order: 16, 17, 18,
-              // 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
-              for (int i = 0; i <= rlc_last_code_index; ++i) {
-                bb_cps->write_bits(cl3[DeflateRLCPermutation[i]], 3);
-              }
-              // literal/length/eob huffman tree and distance huffman tree.
-              auto write_huffman_code_len =
-                  [&bb_cps, &h3](const std::vector<uint32>& rlc) {
-                    for (auto&& item : rlc) {
-                      const auto [x, y] = run_length_decode(item);
-                      h3.write_to_bb(bb_cps, x);
-                      if (x == 16) {
-                        bb_cps->write_bits(static_cast<uint64>(y) - 3, 2);
-                      } else if (x == 17) {
-                        bb_cps->write_bits(static_cast<uint64>(y) - 3, 3);
-                      } else if (x == 18) {
-                        bb_cps->write_bits(static_cast<uint64>(y) - 11, 7);
-                      }
-                    }
-                  };
-              write_huffman_code_len(rlc1);
-              write_huffman_code_len(rlc2);
-              // encoded data
-              for (auto&& item : items) {
-                switch (item.type) {
-                  case DeflateItemType::literal:
-                    h1.write_to_bb(bb_cps, DeflateLiteralTable[item.val][0]);
-                    break;
-                  case DeflateItemType::length:
-                    h1.write_to_bb(bb_cps, DeflateLengthTable[item.val][0]);
-                    if (DeflateLengthTable[item.val][1]) {
-                      bb_cps->write_bits(DeflateLengthTable[item.val][2],
-                                         DeflateLengthTable[item.val][1]);
-                    }
-                    break;
-                  case DeflateItemType::stop:
-                    h1.write_to_bb(bb_cps, DeflateEOBCode);
-                    break;
-                  case DeflateItemType::distance:
-                    h2.write_to_bb(bb_cps, DeflateDistanceTable[item.val][0]);
-                    if (DeflateDistanceTable[item.val][1]) {
-                      bb_cps->write_bits(DeflateDistanceTable[item.val][2],
-                                         DeflateDistanceTable[item.val][1]);
-                    }
-                    break;
-                }
-              }
-            } break;
+        } break;
+        case DeflateCodingType::dynamic_coding: {
+          std::vector<uint64> lit_len_eob;
+          std::vector<uint64> dis;
+          for (auto&& item : items) {
+            switch (item.type) {
+              case DeflateItemType::literal:
+                lit_len_eob.push_back(DeflateLiteralTable[item.val][0]);
+                break;
+              case DeflateItemType::length:
+                lit_len_eob.push_back(DeflateLengthTable[item.val][0]);
+                break;
+              case DeflateItemType::stop:
+                lit_len_eob.push_back(DeflateEOBCode);
+                break;
+              case DeflateItemType::distance:
+                dis.push_back(DeflateDistanceTable[item.val][0]);
+            }
           }
-
-          // Determine which method to use: store / static coding
-          if (bb_cps->get_bytes_size() >= static_cast<size_t>(q - p)) {
-            // Use store.
-            bb_write_store(bb, p, q - p, q == ed && last_section);
-            // log::log(bb_cps->get_bytes_size(), "(deflate) v.s. ", q - p,
-            //          "(original), use store");
-          } else {
-            // Use static coding.
-            bb->append(*bb_cps);
-            // log::log(bb_cps->get_bytes_size(), "(deflate) v.s. ", q - p,
-            //          "(original), use deflate");
+          lit_len_eob.push_back(DeflateEOBCode);
+          // If no distance code, push an arbitrary one.
+          if (dis.empty()) {
+            dis.push_back(0);
           }
-          items.clear();
-        }
-      };
+          HuffmanTree h1(DeflateLELMaxCode + 1, DeflateHuffmanMaxLen);
+          HuffmanTree h2(DeflateDisMaxCode + 1, DeflateHuffmanMaxLen);
+          HuffmanTree h3(DeflateRLCMaxCode + 1, DeflateRLCMaxLen);
+          auto cl1 = h1.calculate(lit_len_eob);
+          cl1.resize(static_cast<size_t>(h1.get_last_code()) + 1);
+          auto cl2 = h2.calculate(dis);
+          cl2.resize(static_cast<size_t>(h2.get_last_code()) + 1);
+          auto rlc1 = run_length_encode(cl1);
+          auto rlc2 = run_length_encode(cl2);
+          auto rlc_combine = rlc1;
+          rlc_combine.insert(rlc_combine.end(), rlc2.begin(), rlc2.end());
+          for (auto&& x : rlc_combine) {
+            x &= 31;
+          }
+          auto cl3 = h3.calculate(
+              std::vector<uint64>(rlc_combine.begin(), rlc_combine.end()));
+
+          // header
+          bb_cps->write_bit(q == ed && last_section);
+          bb_cps->write_bits(0b10, 2);
+          bb_cps->write_bits(cl1.size() - DeflateHLITMin, 5);
+          bb_cps->write_bits(cl2.size() - DeflateHDISTMin, 5);
+          int rlc_last_code_index = DeflateRLCMaxCode;
+          for (int i = DeflateRLCMaxCode; i >= 0; --i) {
+            if (cl3[DeflateRLCPermutation[i]]) {
+              rlc_last_code_index = i;
+              break;
+            }
+          }
+          bb_cps->write_bits(
+              static_cast<uint64>(rlc_last_code_index) + 1 - DeflateHCLENMin,
+              4);
+          // (HCLEN + 4) x 3 bits: code lengths for the code length
+          // alphabet given just above, in the order: 16, 17, 18,
+          // 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
+          for (int i = 0; i <= rlc_last_code_index; ++i) {
+            bb_cps->write_bits(cl3[DeflateRLCPermutation[i]], 3);
+          }
+          // literal/length/eob huffman tree and distance huffman tree.
+          auto write_huffman_code_len = [&bb_cps,
+                                         &h3](const std::vector<uint32>& rlc) {
+            for (auto&& item : rlc) {
+              const auto [x, y] = run_length_decode(item);
+              h3.write_to_bb(bb_cps, x);
+              if (x == 16) {
+                bb_cps->write_bits(static_cast<uint64>(y) - 3, 2);
+              } else if (x == 17) {
+                bb_cps->write_bits(static_cast<uint64>(y) - 3, 3);
+              } else if (x == 18) {
+                bb_cps->write_bits(static_cast<uint64>(y) - 11, 7);
+              }
+            }
+          };
+          write_huffman_code_len(rlc1);
+          write_huffman_code_len(rlc2);
+          // encoded data
+          for (auto&& item : items) {
+            switch (item.type) {
+              case DeflateItemType::literal:
+                h1.write_to_bb(bb_cps, DeflateLiteralTable[item.val][0]);
+                break;
+              case DeflateItemType::length:
+                h1.write_to_bb(bb_cps, DeflateLengthTable[item.val][0]);
+                if (DeflateLengthTable[item.val][1]) {
+                  bb_cps->write_bits(DeflateLengthTable[item.val][2],
+                                     DeflateLengthTable[item.val][1]);
+                }
+                break;
+              case DeflateItemType::stop:
+                h1.write_to_bb(bb_cps, DeflateEOBCode);
+                break;
+              case DeflateItemType::distance:
+                h2.write_to_bb(bb_cps, DeflateDistanceTable[item.val][0]);
+                if (DeflateDistanceTable[item.val][1]) {
+                  bb_cps->write_bits(DeflateDistanceTable[item.val][2],
+                                     DeflateDistanceTable[item.val][1]);
+                }
+                break;
+            }
+          }
+        } break;
+      }
+
+      // Determine which method to use: store / static coding
+      if (bb_cps->get_bytes_size() >= static_cast<size_t>(q - p)) {
+        // Use store.
+        bb_write_store(bb, p, q - p, q == ed && last_section);
+        // log::log(bb_cps->get_bytes_size(), "(deflate) v.s. ", q - p,
+        //          "(original), use store");
+      } else {
+        // Use static coding.
+        bb->append(*bb_cps);
+        // log::log(bb_cps->get_bytes_size(), "(deflate) v.s. ", q - p,
+        //          "(original), use deflate");
+      }
+      items.clear();
+    }
+  };
 
   const int block_cnt =
       static_cast<int>((m_src_len + DeflateBlockSize - 1) / DeflateBlockSize);
@@ -267,7 +274,8 @@ void DeflateDictionary::calc(const Byte* src, size_t n,
         size_t max_check = DeflateDictionaryConfig[deflate_lz77_level][0];
         size_t max_match_len = 0;
         size_t max_match_pos = 0;
-        for (const LLNode* p = m_head3b[hash3b]; p && p->pos >= m_left; p = p->next) {
+        for (const LLNode* p = m_head3b[hash3b]; p && p->pos >= m_left;
+             p = p->next) {
           size_t match_len = max_match_len;
           if (match_len == 0) {
             match_len = 3;
@@ -281,7 +289,8 @@ void DeflateDictionary::calc(const Byte* src, size_t n,
           }
 
           if (base_ok) {
-            while (i + match_len < n && match_len < DeflateRepeatLenMax && src[p->pos + match_len] == src[i + match_len]) {
+            while (i + match_len < n && match_len < DeflateRepeatLenMax &&
+                   src[p->pos + match_len] == src[i + match_len]) {
               ++match_len;
             }
             if (match_len > max_match_len) {

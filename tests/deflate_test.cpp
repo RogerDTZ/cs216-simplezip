@@ -1,6 +1,7 @@
 #include <fstream>
 
 #include "compress/cps_deflate.hpp"
+
 #include "gtest/gtest.h"
 
 TEST(defalte, dictionary) {
@@ -69,7 +70,7 @@ TEST_P(RunLengthCodeTest, encode_decode) {
   auto code = sz::run_length_encode(data);
 
   std::vector<int> decoded;
-  for (auto&& item: code) {
+  for (auto&& item : code) {
     auto [x, y] = sz::run_length_decode(item);
     if (x <= 15) {
       decoded.push_back(x);
@@ -93,12 +94,12 @@ TEST_P(RunLengthCodeTest, encode_decode) {
       }
     }
   }
-  
+
   EXPECT_EQ(data.size(), decoded.size());
   for (size_t i = 0; i < data.size(); ++i) {
     EXPECT_EQ(data[i], decoded[i]);
   }
 }
 
-INSTANTIATE_TEST_CASE_P(DeflateTest, RunLengthCodeTest, testing::Values(100, 1000, 10000, 100000));
-
+INSTANTIATE_TEST_CASE_P(DeflateTest, RunLengthCodeTest,
+                        testing::Values(100, 1000, 10000, 100000));

@@ -44,7 +44,8 @@ int main(int argc, char** argv) {
     }
     ofs << std::endl;
 
-    ofs << std::dec << "constexpr const uint32 * GetReverseBitTable(int n) {\n  switch (n) "
+    ofs << std::dec
+        << "constexpr const uint32 * GetReverseBitTable(int n) {\n  switch (n) "
            "{\n";
     for (int i = 1; i <= sz::BIT_REVERSE_TABLE_LEN; ++i) {
       ofs << "    case " << i << ":\n      return BitReverseTable_" << i
