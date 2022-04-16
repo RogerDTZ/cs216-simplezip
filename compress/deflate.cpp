@@ -124,10 +124,10 @@ size_t DeflateCompressor::compress() {
 
   log::log("Compressed size: ", std::setprecision(2), std::fixed,
            static_cast<float>(m_res_len) / 1024.f, " KB");
-  log::log(
-      "Compression rate: ", std::setprecision(2), std::fixed,
-      static_cast<float>(m_res_len) / static_cast<float>(m_src_len) * 100.f,
-      "%");
+  log::log("Compression rate: ", std::setprecision(2), std::fixed,
+           100.f - static_cast<float>(m_res_len) / static_cast<float>(m_src_len) *
+                     100.f,
+           "%");
 
   return m_res_len;
 }
