@@ -12,6 +12,7 @@ option(SZ_USE_REVERSEBIT_TABLE "Use reverse bit table.")
 option(SZ_BUILD_APP "Build application.")
 option(SZ_BUILD_TEST "Build tests.")
 
+set(SZ_ENABLE_FREAD_FWRITE ON CACHE BOOL "" FORCE)
 set(SZ_BUILD_APP ON CACHE BOOL "" FORCE)
 
 
@@ -48,7 +49,9 @@ set(SZ_LIBSRC_COMPRESS
 	"${CMAKE_SOURCE_DIR}/compress/compressor.hpp"
 	"${CMAKE_SOURCE_DIR}/compress/cps_store.hpp"
 	"${CMAKE_SOURCE_DIR}/compress/cps_deflate.hpp"
-	"${CMAKE_SOURCE_DIR}/compress/cps_deflate.cpp"
+	"${CMAKE_SOURCE_DIR}/compress/deflate.cpp"
+	"${CMAKE_SOURCE_DIR}/compress/deflate_huffman.cpp"
+	"${CMAKE_SOURCE_DIR}/compress/lz77_dictionary.cpp"
 )
 
 set(SZ_TABLE_DEFLATE "${CMAKE_BINARY_DIR}/include/compress/table_deflate.hpp")
@@ -164,7 +167,7 @@ if (SZ_BUILD_TEST)
 	target_sources(sz_tests
 		PRIVATE
 		"tests/test_entry.cpp"
-		"tests/bitflow_test.cpp"
+		"tests/bitstream_test.cpp"
 		"tests/deflate_test.cpp"
 	)
 	target_link_libraries(sz_tests sz gtest gtest_main)

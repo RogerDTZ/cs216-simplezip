@@ -30,14 +30,14 @@ uint64 reverse_bits(uint64 payload, const int n) {
   return res;
 }
 
-void BitFlowBuilder::write_bit(const int payload) {
+void BitStream::write_bit(const int payload) {
   *m_cur_byte |= (payload & 1) << m_cur_bit++;
   if (m_cur_bit == 8) {
     next_byte();
   }
 }
 
-void BitFlowBuilder::write_bits(uint64 payload, int n, const bool little_end) {
+void BitStream::write_bits(uint64 payload, int n, const bool little_end) {
   if (!little_end) {
     payload = reverse_bits(payload, n);
   }
@@ -62,7 +62,7 @@ void BitFlowBuilder::write_bits(uint64 payload, int n, const bool little_end) {
   }
 }
 
-void BitFlowBuilder::append(const BitFlowBuilder& rhs) {
+void BitStream::append(const BitStream& rhs) {
   // Fill the first byte's high 8 - offset bits with low 8 - offset bits of
   // rhs's first byte. Each following byte consists of high offset bits of
   // rhs's current byte and low 8 - offset bits of rhs's next byte.
@@ -111,7 +111,7 @@ void BitFlowBuilder::append(const BitFlowBuilder& rhs) {
   }
 }
 
-void BitFlowBuilder::align_to_byte(const int bit) {
+void BitStream::align_to_byte(const int bit) {
   int t = 8 - m_cur_bit;
   while (t--) {
     write_bit(bit & 1);
@@ -119,7 +119,7 @@ void BitFlowBuilder::align_to_byte(const int bit) {
 }
 
 #if defined(BUILD_TEST) && defined(SZ_USE_REVERSEBIT_TABLE)
-void BitFlowBuilder::write_bits_no_rev_table(uint32 payload, int n,
+void BitStream::write_bits_no_rev_table(uint32 payload, int n,
                                              const bool little_end) {
   if (!little_end) {
     payload = reverse_bits(payload, n);
@@ -146,15 +146,15 @@ void BitFlowBuilder::write_bits_no_rev_table(uint32 payload, int n,
 }
 #endif
 
-size_t BitFlowBuilder::get_bits_size() const {
+size_t BitStream::get_bits_size() const {
   return (m_cur_byte - &m_bytes[0]) << 3 | m_cur_bit;
 }
 
-size_t BitFlowBuilder::get_bytes_size() const {
+size_t BitStream::get_bytes_size() const {
   return m_cur_byte - &m_bytes[0] + (m_cur_bit != 0);
 }
 
-void BitFlowBuilder::export_bitflow(Byte* dst, size_t n) {
+void BitStream::export_bitstream(Byte* dst, size_t n) {
   if (n == 0) {
     memcpy(dst, &m_bytes[0], sizeof(Byte) * get_bytes_size());
   } else {
@@ -162,7 +162,7 @@ void BitFlowBuilder::export_bitflow(Byte* dst, size_t n) {
   }
 }
 
-void BitFlowBuilder::next_byte() {
+void BitStream::next_byte() {
   m_cur_byte++;
   m_cur_bit = 0;
   if (m_cur_byte == m_buffer_end) {
@@ -170,7 +170,7 @@ void BitFlowBuilder::next_byte() {
   }
 }
 
-void BitFlowBuilder::expand() {
+void BitStream::expand() {
   size_t size = m_cur_byte - &m_bytes[0];
   m_cap <<= 1;
   m_bytes.resize(m_cap);

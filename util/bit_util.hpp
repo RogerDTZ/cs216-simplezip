@@ -12,12 +12,12 @@ constexpr int BIT_REVERSE_TABLE_LEN = 15;
 
 uint64 reverse_bits(uint64 payload, int n);
 
-class BitFlowBuilder {
+class BitStream {
  public:
-  BitFlowBuilder() : BitFlowBuilder(16 << 3) {}
+  BitStream() : BitStream(16 << 3) {}
 
   // Init the bit flow with initial size (in bits).
-  BitFlowBuilder(size_t init_size)
+  BitStream(size_t init_size)
       : m_bytes((init_size >> 3) + ((init_size & 7) != 0)), m_cur_bit(0) {
     m_cap = 1;
     while (m_cap < m_bytes.capacity()) {
@@ -39,7 +39,7 @@ class BitFlowBuilder {
 #endif
 
   // Append another bit flow to its end.
-  void append(const BitFlowBuilder& rhs);
+  void append(const BitStream& rhs);
 
   // Align to byte using the bit.
   void align_to_byte(int bit);
@@ -51,7 +51,7 @@ class BitFlowBuilder {
 
   // Export bit flow of length n to destination byte flow.
   // If n is 0, export the whole bit flow; otherwise, export n bits.
-  void export_bitflow(Byte* dst, size_t n = 0);
+  void export_bitstream(Byte* dst, size_t n = 0);
 
  private:
   std::vector<Byte> m_bytes;

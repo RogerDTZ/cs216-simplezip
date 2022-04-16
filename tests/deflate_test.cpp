@@ -13,8 +13,8 @@ TEST(defalte, dictionary) {
       src[i] = static_cast<sz::Byte>(static_cast<size_t>(rand()) % c[t]);
     }
 
-    auto dict = std::make_shared<sz::DeflateDictionary>();
-    auto res = std::make_shared<std::vector<sz::DeflateItem>>();
+    auto dict = std::make_shared<sz::LZ77Dictionary>();
+    auto res = std::make_shared<std::vector<sz::LZ77Item>>();
     sz::ProgressBar bar(std::string("Deflate: "), &std::cerr, src.size(), 40,
                         ' ', '=', '>');
     bar.set_display(true);
@@ -25,14 +25,14 @@ TEST(defalte, dictionary) {
     int cur = 0;
     for (size_t i = 0; i < res->size(); ++i) {
       const auto& item = (*res)[i];
-      if (item.type == sz::DeflateItemType::literal) {
+      if (item.type == sz::LZ77ItemType::literal) {
         EXPECT_EQ(src[cur], item.val);
         ++cur;
       } else {
-        EXPECT_EQ(item.type, sz::DeflateItemType::length);
+        EXPECT_EQ(item.type, sz::LZ77ItemType::length);
         EXPECT_LT(i + 1, res->size());
         const auto& next_item = (*res)[i + 1];
-        EXPECT_EQ(item.type, sz::DeflateItemType::length);
+        EXPECT_EQ(item.type, sz::LZ77ItemType::length);
         const auto len = item.val;
         const auto distance = next_item.val;
         EXPECT_GE(cur, distance);

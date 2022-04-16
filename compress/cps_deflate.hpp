@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <memory>
 
 #include "sz/types.hpp"
 
@@ -11,8 +10,8 @@
 
 namespace sz {
 
-// Deflate dictionary size (32 KBytes).
-constexpr size_t DeflateDictionarySize = 32 << 10;
+// LZ77 dictionary size (32 KBytes).
+constexpr size_t LZ77DictionarySize = 32 << 10;
 
 // Deflate max repeat length.
 constexpr size_t DeflateRepeatLenMax = 258;
@@ -40,7 +39,8 @@ constexpr int DeflateHCLENMin = 4;
 constexpr int DeflateRLCPermutation[] = {16, 17, 18, 0, 8,  7, 9,  6, 10, 5,
                                          11, 4,  12, 3, 13, 2, 14, 1, 15};
 
-constexpr size_t DeflateDictionaryConfig[][4]{
+constexpr size_t LZ77DictionaryConfigNum = 4;
+constexpr size_t LZ77DictionaryConfig[LZ77DictionaryConfigNum][4]{
     /* max chain length, good(/4), nice(/16), perfect(stop) */
     {64, 4, 8, 16},
     {128, 8, 16, 128},
@@ -48,20 +48,27 @@ constexpr size_t DeflateDictionaryConfig[][4]{
     {4096, 258, 258, 258},
 };
 
+size_t lz77_get_config(const size_t level);
+
 enum class DeflateCodingType { static_coding, dynamic_coding };
 
-enum class DeflateItemType { literal, distance, length, stop };
+enum class LZ77ItemType { literal, distance, length, eob };
 
-struct DeflateItem {
-  DeflateItemType type;
+struct LZ77Item {
+  LZ77ItemType type;
   uint16 val;
 };
 
-void bb_write_store(const std::shared_ptr<BitFlowBuilder>& bb, const Byte* src,
-                    size_t n, bool last_block);
+void deflate_encode_store_block(const std::shared_ptr<BitStream>& bs,
+                                const Byte* src, size_t n, bool last_block);
 
-void bb_write_deflate_item_static(const std::shared_ptr<BitFlowBuilder>& bb,
-                                  const DeflateItem& item);
+void deflate_encode_static_block(const std::shared_ptr<BitStream>& bs,
+                                 const std::vector<LZ77Item>& items,
+                                 bool last_block);
+
+void deflate_encode_dynamic_block(const std::shared_ptr<BitStream>& bs,
+                                  const std::vector<LZ77Item>& items,
+                                  bool last_block);
 
 // Return the run length code of src.
 // Use low 5 bits as [0, 18]. The next higher bits are extra bits.
@@ -95,24 +102,21 @@ class DeflateCompressor final : public Compressor {
   size_t m_res_len;
 };
 
-constexpr size_t HashBufferSize = DeflateDictionarySize + DeflateRepeatLenMax;
+constexpr size_t HashBufferSize = LZ77DictionarySize + DeflateRepeatLenMax;
 constexpr uint64 HashRoot = 13333ull;
 constexpr size_t Hash3bHeadSize = 257 * 257 * 257;
 
-class DeflateDictionary final {
+class LZ77Dictionary final {
  public:
-  DeflateDictionary() : m_head3b(), m_hash(), m_left(0) {}
+  LZ77Dictionary() : m_head3b(), m_hash(), m_left(0) {}
 
-  DeflateDictionary(const DeflateDictionary&) = delete;
-  DeflateDictionary& operator=(const DeflateDictionary&) = delete;
-  DeflateDictionary(DeflateDictionary&&) = delete;
-  DeflateDictionary& operator=(DeflateDictionary&&) = delete;
-  ~DeflateDictionary() = default;
+  LZ77Dictionary(const LZ77Dictionary&) = delete;
+  LZ77Dictionary& operator=(const LZ77Dictionary&) = delete;
+  LZ77Dictionary(LZ77Dictionary&&) = delete;
+  LZ77Dictionary& operator=(LZ77Dictionary&&) = delete;
+  ~LZ77Dictionary() = default;
 
-  // Use brute comparison for small possible items.
-  constexpr static size_t SmallFilter = 32;
-
-  void calc(const Byte* src, size_t n, std::vector<DeflateItem>& res,
+  void calc(const Byte* src, size_t n, std::vector<LZ77Item>& res,
             ProgressBar& bar);
 
  private:
@@ -140,8 +144,8 @@ class DeflateDictionary final {
 class HuffmanTree final {
  public:
   HuffmanTree() = delete;
-  // Create a huffman tree of [0, max_code) with limited length (1 <= max_len <=
-  // 64).
+  // Create a huffman tree of [0, max_code) with limited length (1 <= max_len
+  // <= 64).
   HuffmanTree(int max_code, int max_len);
 
   // Prepare the huffman coding.
@@ -151,8 +155,8 @@ class HuffmanTree final {
   // Return the code and length of the input entry.
   [[nodiscard]] std::pair<uint64, int> encode(uint64 x) const;
 
-  // Write the code of x into BitFlowBuilder (use big endian).
-  void write_to_bb(const std::shared_ptr<BitFlowBuilder>& bb, uint64 x) const;
+  // Write the code of x into BitStream (use big endian).
+  void write_to_bs(const std::shared_ptr<BitStream>& bs, uint64 x) const;
 
   // Return the last existed code.
   [[nodiscard]] int get_last_code() const;

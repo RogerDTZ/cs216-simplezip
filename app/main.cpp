@@ -8,7 +8,7 @@
 #include "CLI/Formatter.hpp"
 
 int main(int argc, char** argv) {
-  CLI::App app{"simplezip"};
+  CLI::App app{"SimpleZip"};
 
   std::string target_filename;
   app.add_option("target", target_filename, "The filename of the result.")
@@ -16,18 +16,18 @@ int main(int argc, char** argv) {
 
   std::vector<std::string> source_filenames;
   app.add_option<std::vector<std::string>>("source", source_filenames,
-                                           "The source file to be compressed.")
+                                           "The source file(s) to be compressed.")
       ->required();
 
   app.add_flag("-v,--verbose", sz::log_info_switch, "Verbose mode");
 
   std::string arg_compress_method;
-  app.add_option("-m,--method", arg_compress_method, "store | deflate");
+  app.add_option("-m,--method", arg_compress_method, "store | deflate (default: deflate)");
 
   app.add_flag("--deflate_static", sz::deflate_use_static,
-               "Use static encoding in Deflate");
+               "Use static encoding (for deflate)");
   app.add_option<int>("-l,--level", sz::deflate_lz77_level,
-                      "Level of LZ77 (0..3)")
+                      "Level of LZ77 (0..3), default: 1")
       ->check(CLI::Range(0, 3));
 
   size_t thread_cnt = std::thread::hardware_concurrency();
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
   auto end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
   sz::log::log("Time used: ", std::fixed, std::setprecision(2),
-               elapsed_seconds.count());
+               elapsed_seconds.count(), "s");
 
   std::cerr << "writing zip ... ";
   if (!zipper.write(target_filename)) {
