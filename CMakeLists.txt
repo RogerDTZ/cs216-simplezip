@@ -196,3 +196,6 @@ if (SZ_BUILD_APP)
 		RUNTIME DESTINATION bin
 	)
 endif()
+
+# Package
+include(CPack)
