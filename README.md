@@ -95,7 +95,7 @@ A `FileEntry` class manages a file entity. It reads, manages, and compresses the
 * export the local file header byte stream, file data byte stream, and file header byte stream
 
 CRC-32 is accelerated by a pre-calculated extension table, so that the calculation is 8-times faster than the brute force.
-```c++{.line-numbers}
+```c++
 CRC32Value extend(CRC32Value init_val, const Byte* data, size_t n) {
   const Byte* p = data;
   const Byte* q = data + n;
@@ -129,7 +129,7 @@ Appending bits to bit stream may call for a bit reverse operation due to endian 
 ## 3.3. Compressor
 
 Each compression method corresponds to a compressor class. For better extensibility, all compressors extend from a virtual base class `Compressor`
-```c++{.line-numbers}
+```c++
 class Compressor {
  public:
   Compressor();
@@ -171,7 +171,7 @@ For store method, the compressor literally exports the raw content.
 ### 3.3.2. Deflate Compressor
 
 Deflate compressor executes LZ77 algorithm on the fed content, then encodes the result using static encoding and dynamic encoding. The file data is divided into sections and allocated to multiple work threads. Each work thread's entry function is as follows:
-```c++{.line-numbers}
+```c++
 // The work thread that runs LZ77 on [st, ed) and encodes the result.
 auto work_thread = [this](const Byte* st, const Byte* ed,
                           const bool last_section,
@@ -259,7 +259,7 @@ The deflate block size is set to 1024 KB, while the dictionary size is set to 32
 The dictionary uses a cycling array to maintain the hash of bytes in scanned window before the cursor (32768 Bytes) as well as the future window ahead of the cursor (258 Bytes, the maximum repeat length in deflate). This enables the dictionary to quickly decide if two byte sequences are not equal.
 
 The minimum repeat length is 3, so the dictionary seeks for every position in the scanned window that has 3 bytes equal to the 3 bytes ahead of the cursor. A full-hash-map function can be used:
-```c++{.line-numbers}
+```c++
 // Return the uint16 hash value of 3 bytes.
 // -1 for out of bound.
 static uint32 get_hash3b(int a, int b, int c) {
