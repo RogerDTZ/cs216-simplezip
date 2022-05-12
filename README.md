@@ -240,13 +240,13 @@ According to the specification of deflate, the first two Huffman trees should no
 
 ### 3.3.3. Huffman Tree within Maximum Code Length
 
-The Huffman tree construction with maximum code length limitation is implemented by **Package-Merge** algorithm. This algorithm helps to obtain the best encoding solution under the limitation. The time complexity is $O(NL)$, where $N$ is the number of different items, and $L$ is the maximum code length.
+The Huffman tree construction with maximum code length limitation is implemented by **Package-Merge** algorithm. This algorithm helps to obtain the best encoding solution under the limitation. The time complexity is <img src="https://latex.codecogs.com/gif.latex?O(NL)"/>, where <img src="https://latex.codecogs.com/gif.latex?N"/> is the number of different items, and <img src="https://latex.codecogs.com/gif.latex?L"/> is the maximum code length.
 
-First, for each code length, create a list containing all $N$ items, sorted by increasing frequency.
+First, for each code length, create a list containing all <img src="https://latex.codecogs.com/gif.latex?N"/> items, sorted by increasing frequency.
 
-Iterate list $0$ to list $L-1$. For each list, assume its length is $M$, group all two adjacent items into $\lfloor \frac M 2 \rfloor$ groups of size $2$ (leave the biggest one alone if $M$ is odd). These groups are called packages and are added into the next list as normal "item"s with frequency equals to the summation of the original two items. These newly added items should not break the order of increasing frequency, so a merge process resembling Merge Sort is performed.
+Iterate list <img src="https://latex.codecogs.com/gif.latex?0"/> to list <img src="https://latex.codecogs.com/gif.latex?L-1"/>. For each list, assume its length is <img src="https://latex.codecogs.com/gif.latex?M"/>, group all two adjacent items into <img src="https://latex.codecogs.com/gif.latex?\lfloor&space;\frac&space;M&space;2&space;\rfloor"/> groups of size <img src="https://latex.codecogs.com/gif.latex?2"/> (leave the biggest one alone if <img src="https://latex.codecogs.com/gif.latex?M"/> is odd). These groups are called packages and are added into the next list as normal "item"s with frequency equals to the summation of the original two items. These newly added items should not break the order of increasing frequency, so a merge process resembling Merge Sort is performed.
 
-Pick the first $2(N-1)$ items in the last list. For each of the $N$ original items, its code length in the final Huffman tree equals to the number of its representing items that are contained in the picked items / package.
+Pick the first <img src="https://latex.codecogs.com/gif.latex?2(N-1)"/> items in the last list. For each of the <img src="https://latex.codecogs.com/gif.latex?N"/> original items, its code length in the final Huffman tree equals to the number of its representing items that are contained in the picked items / package.
 
 From the code length sequence, a Huffman tree can be generated.
 
@@ -266,9 +266,9 @@ static uint32 get_hash3b(int a, int b, int c) {
   return (a + 1) * 66049 + (b + 1) * 257 + (c + 1);
 }
 ```
-There are totally $257^3=16974593$ possible combinations. For each hash value $h$, use a linked list to record all positions whose following 3 bytes hash into $h$. The linked list stores nodes in forward type, so that a position nearer to the cursor is in front of a farther one.
+There are totally <img src="https://latex.codecogs.com/gif.latex?257^3=16974593"/> possible combinations. For each hash value <img src="https://latex.codecogs.com/gif.latex?h"/>, use a linked list to record all positions whose following 3 bytes hash into <img src="https://latex.codecogs.com/gif.latex?h"/>. The linked list stores nodes in forward type, so that a position nearer to the cursor is in front of a farther one.
 
-To find the longest matching, the dictionary scans through the corresponding linked list, and advance the longest matching $m$. For each position, first check if the first $m$ bytes matches (use the cycling hash to quickly filter negative ones). Then, advance the longest matching step by step. The iteration stops when the position is out of the scanned window.
+To find the longest matching, the dictionary scans through the corresponding linked list, and advance the longest matching <img src="https://latex.codecogs.com/gif.latex?m"/>. For each position, first check if the first <img src="https://latex.codecogs.com/gif.latex?m"/> bytes matches (use the cycling hash to quickly filter negative ones). Then, advance the longest matching step by step. The iteration stops when the position is out of the scanned window.
 
 To optimize the matching process, configurations are used. There are 4 levels:
 |level|max chain length|good length|nice length|perfect length|
@@ -277,7 +277,7 @@ To optimize the matching process, configurations are used. There are 4 levels:
 |1|128|8|16|128|
 |2|512|16|128|258|
 |3|4096|258|258|258|
-where max chain length is the maximum steps walking through the linked list. If the longest matching is more than good or nice length, the max chain length is shrunk to $\frac 14$ or $\frac 1{16}$. If the longest matching reaches perfect length, the iteration immediately stops. A higher level implies higher compression rate and higher time cost.
+where max chain length is the maximum steps walking through the linked list. If the longest matching is more than good or nice length, the max chain length is shrunk to <img src="https://latex.codecogs.com/gif.latex?\frac&space;14"/> or <img src="https://latex.codecogs.com/gif.latex?\frac&space;1{16}"/>. If the longest matching reaches perfect length, the iteration immediately stops. A higher level implies higher compression rate and higher time cost.
 
 The default level is 1.
 
@@ -321,7 +321,7 @@ Tests are written to make sure the `BitStream` class, LZ77 dictionary, and run l
 | 7-zip | standard compression | 548,822 | 14.66% |
 | 7-zip | extreme compression | 543,937 | 14.53% |
 
-**test target 3**: `enwiki9` (1,000,000,000 bytes), the first $10^9$ bytes of the English Wikipedia dump on Mar. 3, 2006.
+**test target 3**: `enwiki9` (1,000,000,000 bytes), the first <img src="https://latex.codecogs.com/gif.latex?10^9"/> bytes of the English Wikipedia dump on Mar. 3, 2006.
 CPU: AMD Ryzen 7 5800X 8-Core Processor 3.80 GHz
 |compressor|mode|thread used|output size (byte)|size ratio|time used (sec)|speed (MB/s)|
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
